@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Grader — Latest Set</title>
+<style>
+  :root{
+    --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    --font-serif: ui-serif, Georgia, 'Times New Roman', serif;
+    --bg: #12161a;
+    --panel: #1a2027;
+    --table-center: #262e37;
+    --table-edge: #12161a;
+    --ink: #eef2f4;
+    --muted: #8fa0ac;
+    --muted-dim: #5c6b76;
+    --brass: #c99a44;
+    --brass-bright: #e2b968;
+    --brass-dim: #8a6a2f;
+    --crimson: #a8425a;
+    --line: rgba(255,255,255,0.08);
+    --line-bright: rgba(255,255,255,0.16);
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+  }
+
+  ::selection { background: var(--brass-dim); color: var(--ink); }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--brass-bright);
+    outline-offset: 2px;
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+
+  /* ---------- Header ---------- */
+
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 20px;
+  }
+
+  .set-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .set-icon {
+    width: 26px;
+    height: 26px;
+    background-color: var(--brass);
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    flex-shrink: 0;
+  }
+
+  .set-name {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: 0.01em;
+  }
+
+  .set-meta {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .pill-group, .tab-group {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .pill-group button, .tab-group button {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 14px;
+    border-radius: 999px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .pill-group button.active, .tab-group button.active {
+    background: var(--brass-dim);
+    color: var(--ink);
+  }
+
+  .progress {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .progress strong { color: var(--brass-bright); font-weight: 600; }
+
+  /* ---------- Status states ---------- */
+
+  .status-box {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+  }
+
+  .status-box .pulse {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--table-center), transparent 70%);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.4); opacity: 1; }
+  }
+
+  .status-box .retry {
+    margin-top: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line-bright);
+    color: var(--ink);
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  .setup-box {
+    max-width: 440px;
+    margin: 0 auto;
+    text-align: left;
+    line-height: 1.5;
+  }
+
+  .setup-box p {
+    margin: 0 0 14px;
+    font-size: 13px;
+  }
+
+  .setup-box a {
+    color: var(--brass-bright);
+  }
+
+  .setup-input {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .setup-input:focus {
+    outline: 2px solid var(--brass-bright);
+    outline-offset: 2px;
+  }
+
+  .setup-hint {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--muted-dim);
+  }
+
+  .setup-hint code {
+    color: var(--brass-bright);
+    font-family: inherit;
+  }
+
+  .setup-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  .setup-actions button {
+    background: var(--panel);
+    border: 1px solid var(--line-bright);
+    color: var(--ink);
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  .setup-actions button.primary {
+    background: var(--brass-dim);
+    border-color: var(--brass);
+    color: var(--ink);
+  }
+
+  /* ---------- Grade (single card) view ---------- */
+
+  .light-table {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    border-radius: var(--radius);
+    background: radial-gradient(ellipse at center, var(--table-center) 0%, var(--table-edge) 72%);
+    border: 1px solid var(--line);
+  }
+
+  .card-wrap {
+    position: relative;
+    width: min(300px, 70vw);
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.55));
+  }
+
+  .card-wrap img {
+    width: 100%;
+    display: block;
+    border-radius: 4.5% / 3.3%;
+    background: var(--panel);
+  }
+
+  .seal {
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--brass);
+    color: #1a1206;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-serif);
+    font-weight: 900;
+    font-size: 30px;
+    border: 3px solid #12161a;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    transform: rotate(-9deg);
+    animation: stamp 0.28s cubic-bezier(.2,1.6,.4,1);
+  }
+
+  @keyframes stamp {
+    0% { transform: rotate(-9deg) scale(1.9); opacity: 0; }
+    100% { transform: rotate(-9deg) scale(1); opacity: 1; }
+  }
+
+  .card-meta {
+    text-align: center;
+    margin-top: 22px;
+  }
+
+  .card-name {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+
+  .card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .grade-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 26px;
+  }
+
+  .grade-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--line-bright);
+    background: var(--panel);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 19px;
+    transition: transform 0.1s, background 0.15s, border-color 0.15s;
+  }
+
+  .grade-btn:hover {
+    border-color: var(--brass);
+    transform: translateY(-2px);
+  }
+
+  .grade-btn.active {
+    background: var(--brass);
+    color: #1a1206;
+    border-color: var(--brass);
+  }
+
+  .nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 22px;
+  }
+
+  .nav-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 4px;
+    transition: color 0.15s;
+  }
+
+  .nav-btn:hover:not(:disabled) { color: var(--ink); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .clear-link {
+    background: none;
+    border: none;
+    color: var(--crimson);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.75;
+  }
+
+  .clear-link:hover { opacity: 1; }
+
+  .hint {
+    text-align: center;
+    color: var(--muted-dim);
+    font-size: 10px;
+    margin-top: 30px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------- Grid view ---------- */
+
+  .grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+  }
+
+  .grid-item {
+    position: relative;
+    border-radius: 4.5% / 3.3%;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 0;
+    line-height: 0;
+  }
+
+  .grid-item img {
+    width: 100%;
+    display: block;
+    opacity: 0.9;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+
+  .grid-item:hover img {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  .grid-item .mini-seal {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--brass);
+    color: #1a1206;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+
+  .empty-note {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pulse, .seal { animation: none; }
+  }
+
+  @media (max-width: 480px) {
+    .header { flex-direction: column; align-items: flex-start; }
+    .controls { width: 100%; justify-content: space-between; }
+    .light-table { padding: 28px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="set-info">
+      <div class="set-icon" id="set-icon"></div>
+      <div>
+        <div class="set-name" id="set-name">Loading…</div>
+        <div class="set-meta" id="set-meta">&nbsp;</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="tab-group" id="tab-group">
+        <button data-tab="grade" class="active">Grade</button>
+        <button data-tab="grid">Grid</button>
+      </div>
+      <div class="pill-group" id="filter-group">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="ungraded">Ungraded</button>
+      </div>
+      <div class="progress" id="progress"></div>
+      <div class="progress" id="sync-status">—</div>
+    </div>
+  </div>
+
+  <div id="status" class="status-box">
+    <div class="pulse"></div>
+    Loading…
+  </div>
+
+  <div id="grade-view" style="display:none;">
+    <div id="grade-empty" class="empty-note" style="display:none;"></div>
+    <div id="grade-content">
+      <div class="light-table">
+        <div class="card-wrap">
+          <img id="card-image" src="" alt="">
+          <div class="seal" id="seal" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="card-name" id="card-name"></div>
+        <div class="card-sub" id="card-sub"></div>
+      </div>
+      <div class="grade-row" id="grade-row">
+        <button class="grade-btn" data-grade="A">A</button>
+        <button class="grade-btn" data-grade="B">B</button>
+        <button class="grade-btn" data-grade="C">C</button>
+        <button class="grade-btn" data-grade="D">D</button>
+        <button class="grade-btn" data-grade="E">E</button>
+      </div>
+      <div class="nav-row">
+        <button class="nav-btn" id="prev-btn">‹ Prev</button>
+        <button class="clear-link" id="clear-btn">Clear grade</button>
+        <button class="nav-btn" id="next-btn">Next ›</button>
+      </div>
+      <div class="hint">Keys: A B C D E to grade · ← → to move</div>
+    </div>
+  </div>
+
+  <div id="grid-view" class="grid-view" style="display:none;"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const NPOINT_BIN_KEY = 'scryfallCardGraderNpointBinId';
+  const NPOINT_SKIPPED_KEY = 'scryfallCardGraderNpointSkipped';
+  const LOCAL_KEY = 'scryfallCardGraderGrades';
+  const GRADES = ['A', 'B', 'C', 'D', 'E'];
+
+  const state = {
+    setCode: null,
+    cards: [],
+    filtered: [],
+    index: 0,
+    filter: 'all',
+    tab: 'grade',
+    grades: loadLocalCache(),
+    npointBinId: null,
+    cloudSync: false,
+  };
+
+  const el = {
+    status: document.getElementById('status'),
+    gradeView: document.getElementById('grade-view'),
+    gradeContent: document.getElementById('grade-content'),
+    gradeEmpty: document.getElementById('grade-empty'),
+    gridView: document.getElementById('grid-view'),
+    setName: document.getElementById('set-name'),
+    setMeta: document.getElementById('set-meta'),
+    setIcon: document.getElementById('set-icon'),
+    progress: document.getElementById('progress'),
+    cardImage: document.getElementById('card-image'),
+    cardName: document.getElementById('card-name'),
+    cardSub: document.getElementById('card-sub'),
+    seal: document.getElementById('seal'),
+    gradeRow: document.getElementById('grade-row'),
+    prevBtn: document.getElementById('prev-btn'),
+    nextBtn: document.getElementById('next-btn'),
+    clearBtn: document.getElementById('clear-btn'),
+    tabGroup: document.getElementById('tab-group'),
+    filterGroup: document.getElementById('filter-group'),
+    syncStatus: document.getElementById('sync-status'),
+  };
+
+  function loadLocalCache() {
+    try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+
+  function saveLocalCache() {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state.grades));
+  }
+
+  function loadStoredBinId() {
+    return localStorage.getItem(NPOINT_BIN_KEY);
+  }
+
+  function saveStoredBinId(binId) {
+    localStorage.setItem(NPOINT_BIN_KEY, binId);
+    localStorage.removeItem(NPOINT_SKIPPED_KEY);
+  }
+
+  function markNpointSkipped() {
+    localStorage.setItem(NPOINT_SKIPPED_KEY, '1');
+    localStorage.removeItem(NPOINT_BIN_KEY);
+  }
+
+  function isNpointSkipped() {
+    return localStorage.getItem(NPOINT_SKIPPED_KEY) === '1';
+  }
+
+  function normalizeBinId(input) {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    const match = trimmed.match(/npoint\.io\/([^/?#]+)/i);
+    return match ? match[1] : trimmed;
+  }
+
+  function getNpointUrl() {
+    return `https://api.npoint.io/${state.npointBinId}`;
+  }
+
+  function useLocalSyncOnly(reason) {
+    state.cloudSync = false;
+    state.npointBinId = null;
+    setSyncStatus(reason || 'Local only');
+  }
+
+  function showNpointSetup() {
+    return new Promise(resolve => {
+      el.status.style.display = 'block';
+      el.status.innerHTML = `
+        <div class="setup-box">
+          <p>Sync grades across devices with an <a href="https://www.npoint.io/" target="_blank" rel="noopener">npoint.io</a> bin, or keep them in this browser only.</p>
+          <input class="setup-input" id="npoint-input" type="text" placeholder="Paste bin ID or full npoint URL" autocomplete="off" spellcheck="false">
+          <div class="setup-hint">
+            Create a free bin at <a href="https://www.npoint.io/" target="_blank" rel="noopener">npoint.io</a>.
+            Your bin page will look like <a href="https://www.npoint.io/" target="_blank" rel="noopener">npoint.io/your-bin-id</a>.
+            Initialize the bin with an empty JSON object: <code>{}</code>.
+          </div>
+          <div class="setup-actions">
+            <button class="primary" id="npoint-save">Save &amp; sync</button>
+            <button id="npoint-skip">Skip (local only)</button>
+          </div>
+        </div>
+      `;
+
+      const input = document.getElementById('npoint-input');
+      input.focus();
+
+      document.getElementById('npoint-save').addEventListener('click', () => {
+        const binId = normalizeBinId(input.value);
+        if (!binId) {
+          input.focus();
+          return;
+        }
+        saveStoredBinId(binId);
+        resolve(binId);
+      });
+
+      document.getElementById('npoint-skip').addEventListener('click', () => {
+        markNpointSkipped();
+        resolve(null);
+      });
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('npoint-save').click();
+      });
+    });
+  }
+
+  async function ensureSyncConfig() {
+    let binId = loadStoredBinId();
+    if (!binId && !isNpointSkipped()) {
+      binId = await showNpointSetup();
+    }
+
+    if (binId) {
+      state.npointBinId = binId;
+      state.cloudSync = true;
+      return;
+    }
+
+    useLocalSyncOnly('Local only');
+  }
+
+  function setSyncStatus(text) {
+    el.syncStatus.textContent = text;
+  }
+
+  // Cloud sync when configured; otherwise local storage only.
+  async function fetchAllGrades() {
+    if (!state.cloudSync || !state.npointBinId) {
+      state.grades = loadLocalCache();
+      setSyncStatus('Local only');
+      return;
+    }
+
+    setSyncStatus('Syncing…');
+    try {
+      const res = await fetch(getNpointUrl(), { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error('GET failed: ' + res.status);
+      const data = await res.json();
+      state.grades = data || {};
+      saveLocalCache();
+      setSyncStatus('Synced');
+    } catch (e) {
+      console.error('[Card Grader] Cloud sync error', e);
+      useLocalSyncOnly('Local only (sync failed)');
+      state.grades = loadLocalCache();
+    }
+  }
+
+  async function persistGrades() {
+    saveLocalCache();
+    if (!state.cloudSync || !state.npointBinId) {
+      setSyncStatus('Local only');
+      return;
+    }
+
+    setSyncStatus('Saving…');
+    try {
+      const latest = await fetch(getNpointUrl(), { headers: { 'Accept': 'application/json' } })
+        .then(r => (r.ok ? r.json() : {}))
+        .catch(() => ({}));
+      const merged = { ...latest, ...state.grades };
+      state.grades = merged;
+      const res = await fetch(getNpointUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged),
+      });
+      if (!res.ok) throw new Error('POST failed: ' + res.status);
+      saveLocalCache();
+      setSyncStatus('Synced');
+    } catch (e) {
+      console.error('[Card Grader] Cloud sync error', e);
+      useLocalSyncOnly('Local only (sync failed)');
+    }
+  }
+
+  function cardImageUrl(card) {
+    if (card.image_uris) return card.image_uris.normal;
+    if (card.card_faces && card.card_faces[0].image_uris) return card.card_faces[0].image_uris.normal;
+    return '';
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('Request failed: ' + res.status);
+    return res.json();
+  }
+
+  async function findLatestSet() {
+    const data = await fetchJson('https://api.scryfall.com/sets');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const oneMonthAgo = new Date(today);
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const oneMonthFromNow = new Date(today);
+    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+
+    const toDateStr = d =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const minDate = toDateStr(oneMonthAgo);
+    const maxDate = toDateStr(oneMonthFromNow);
+
+    const candidates = data.data.filter(s =>
+      s.card_count > 0 &&
+      s.released_at &&
+      s.released_at >= minDate &&
+      s.released_at <= maxDate &&
+      s.set_type !== 'token' &&
+      s.set_type !== 'memorabilia'
+    );
+    candidates.sort((a, b) => b.released_at.localeCompare(a.released_at));
+    return candidates[0];
+  }
+
+  async function fetchSetCards(code) {
+    let url = `https://api.scryfall.com/cards/search?q=e%3A${code}&order=set&unique=prints`;
+    let all = [];
+    while (url) {
+      const page = await fetchJson(url);
+      all = all.concat(page.data);
+      url = page.has_more ? page.next_page : null;
+      if (url) await new Promise(r => setTimeout(r, 80));
+    }
+    return all.filter(c => cardImageUrl(c));
+  }
+
+  function applyFilter() {
+    state.filtered = state.filter === 'ungraded'
+      ? state.cards.filter(c => !state.grades[c.id])
+      : state.cards;
+    if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
+  }
+
+  function updateProgress() {
+    const gradedCount = state.cards.filter(c => state.grades[c.id]).length;
+    el.progress.innerHTML = `<strong>${gradedCount}</strong> / ${state.cards.length} graded`;
+  }
+
+  function renderGradeView() {
+    if (!state.filtered.length) {
+      el.gradeContent.style.display = 'none';
+      el.gradeEmpty.style.display = 'block';
+      el.gradeEmpty.textContent = state.filter === 'ungraded'
+        ? 'Every card in this set has a grade. Switch to "All" to review them.'
+        : 'No cards to show.';
+      return;
+    }
+
+    el.gradeContent.style.display = 'block';
+    el.gradeEmpty.style.display = 'none';
+
+    const card = state.filtered[state.index];
+    if (!card) return;
+    const grade = state.grades[card.id];
+
+    el.cardImage.src = cardImageUrl(card);
+    el.cardImage.alt = card.name;
+    el.cardName.textContent = card.name;
+    el.cardSub.textContent = `${card.rarity.toUpperCase()} · #${card.collector_number} · ${card.type_line || ''}`;
+
+    if (grade) {
+      el.seal.style.display = 'flex';
+      el.seal.textContent = grade.grade;
+    } else {
+      el.seal.style.display = 'none';
+    }
+
+    [...el.gradeRow.children].forEach(btn => {
+      btn.classList.toggle('active', grade && grade.grade === btn.dataset.grade);
+    });
+
+    el.prevBtn.disabled = state.index === 0;
+    el.nextBtn.disabled = state.index === state.filtered.length - 1;
+  }
+
+  function renderGridView() {
+    el.gridView.innerHTML = '';
+    if (!state.filtered.length) {
+      const note = document.createElement('div');
+      note.className = 'empty-note';
+      note.style.gridColumn = '1 / -1';
+      note.textContent = state.filter === 'ungraded'
+        ? 'Every card in this set has a grade.'
+        : 'No cards to show.';
+      el.gridView.appendChild(note);
+      return;
+    }
+    state.filtered.forEach((card, i) => {
+      const item = document.createElement('button');
+      item.className = 'grid-item';
+      const img = document.createElement('img');
+      img.src = cardImageUrl(card);
+      img.alt = card.name;
+      img.loading = 'lazy';
+      item.appendChild(img);
+      const grade = state.grades[card.id];
+      if (grade) {
+        const mini = document.createElement('div');
+        mini.className = 'mini-seal';
+        mini.textContent = grade.grade;
+        item.appendChild(mini);
+      }
+      item.addEventListener('click', () => {
+        state.index = i;
+        setTab('grade');
+      });
+      el.gridView.appendChild(item);
+    });
+  }
+
+  function render() {
+    applyFilter();
+    updateProgress();
+    if (state.tab === 'grade') renderGradeView();
+    else renderGridView();
+  }
+
+  function setTab(tab) {
+    state.tab = tab;
+    [...el.tabGroup.children].forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
+    el.gridView.style.display = tab === 'grid' ? 'grid' : 'none';
+    render();
+  }
+
+  function setFilter(filter) {
+    state.filter = filter;
+    state.index = 0;
+    [...el.filterGroup.children].forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+    render();
+  }
+
+  async function gradeCurrentCard(grade) {
+    if (!state.filtered.length) return;
+    const card = state.filtered[state.index];
+    state.grades[card.id] = { grade, gradedAt: new Date().toISOString() };
+    render();
+    await persistGrades();
+  }
+
+  async function clearCurrentCard() {
+    if (!state.filtered.length) return;
+    const card = state.filtered[state.index];
+    delete state.grades[card.id];
+    render();
+    await persistGrades();
+  }
+
+  function move(delta) {
+    const next = state.index + delta;
+    if (next >= 0 && next < state.filtered.length) {
+      state.index = next;
+      render();
+    }
+  }
+
+  el.tabGroup.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-tab]');
+    if (btn) setTab(btn.dataset.tab);
+  });
+
+  el.filterGroup.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-filter]');
+    if (btn) setFilter(btn.dataset.filter);
+  });
+
+  el.gradeRow.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-grade]');
+    if (btn) gradeCurrentCard(btn.dataset.grade);
+  });
+
+  el.prevBtn.addEventListener('click', () => move(-1));
+  el.nextBtn.addEventListener('click', () => move(1));
+  el.clearBtn.addEventListener('click', clearCurrentCard);
+
+  document.addEventListener('keydown', e => {
+    if (state.tab !== 'grade') return;
+    const key = e.key.toUpperCase();
+    if (GRADES.includes(key)) gradeCurrentCard(key);
+    else if (e.key === 'ArrowLeft') move(-1);
+    else if (e.key === 'ArrowRight') move(1);
+  });
+
+  async function init() {
+    try {
+      await ensureSyncConfig();
+      el.status.innerHTML = '<div class="pulse"></div>Fetching the latest set from Scryfall…';
+
+      const set = await findLatestSet();
+      if (!set) throw new Error('No suitable set found');
+      state.setCode = set.code;
+
+      el.setName.textContent = set.name;
+      el.setMeta.textContent = `${set.released_at} · ${set.card_count} cards`;
+      if (set.icon_svg_uri) el.setIcon.style.maskImage = el.setIcon.style.webkitMaskImage = `url("${set.icon_svg_uri}")`;
+
+      const cards = await fetchSetCards(set.code);
+      if (!cards.length) throw new Error('No cards with images found in this set');
+      state.cards = cards;
+
+      await fetchAllGrades();
+
+      el.status.style.display = 'none';
+      el.gradeView.style.display = 'block';
+      render();
+    } catch (err) {
+      el.status.innerHTML = `
+        <div>Could not load a set from Scryfall.</div>
+        <div style="font-size:11px; margin-top:6px; color: var(--muted-dim);">${err.message}</div>
+        <button class="retry" id="retry-btn">Retry</button>
+      `;
+      document.getElementById('retry-btn').addEventListener('click', () => {
+        el.status.innerHTML = '<div class="pulse"></div>Fetching the latest set from Scryfall…';
+        init();
+      });
+    }
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>
