@@ -758,7 +758,7 @@
   }
 
   async function fetchSetCards(code) {
-    let url = `https://api.scryfall.com/cards/search?q=e%3A${code}&order=set&unique=prints`;
+    let url = `https://api.scryfall.com/cards/search?q=e%3A${code}&order=set&unique=cards`;
     let all = [];
     while (url) {
       const page = await fetchJson(url);
@@ -942,7 +942,7 @@
 
       document.title = `Card Grader — ${set.name}`;
       el.setName.textContent = set.name;
-      el.setMeta.textContent = `${set.released_at} · ${set.card_count} cards`;
+      el.setMeta.textContent = `${set.released_at}`;
       if (set.icon_svg_uri) el.setIcon.style.maskImage = el.setIcon.style.webkitMaskImage = `url("${set.icon_svg_uri}")`;
 
       const cards = await fetchSetCards(set.code);
