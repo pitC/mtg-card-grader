@@ -722,6 +722,15 @@
     return res.json();
   }
 
+  function getSetCodeFromUrl() {
+    const code = new URLSearchParams(location.search).get('set');
+    return code ? code.trim().toLowerCase() : null;
+  }
+
+  async function fetchSetByCode(code) {
+    return fetchJson(`https://api.scryfall.com/sets/${encodeURIComponent(code)}`);
+  }
+
   async function findLatestSet() {
     const data = await fetchJson('https://api.scryfall.com/sets');
     const today = new Date();
@@ -920,12 +929,18 @@
   async function init() {
     try {
       await ensureSyncConfig();
-      el.status.innerHTML = '<div class="pulse"></div>Fetching the latest set from Scryfall…';
+      const requestedSet = getSetCodeFromUrl();
+      el.status.innerHTML = requestedSet
+        ? `<div class="pulse"></div>Fetching set “${requestedSet}” from Scryfall…`
+        : '<div class="pulse"></div>Fetching the latest set from Scryfall…';
 
-      const set = await findLatestSet();
+      const set = requestedSet
+        ? await fetchSetByCode(requestedSet)
+        : await findLatestSet();
       if (!set) throw new Error('No suitable set found');
       state.setCode = set.code;
 
+      document.title = `Card Grader — ${set.name}`;
       el.setName.textContent = set.name;
       el.setMeta.textContent = `${set.released_at} · ${set.card_count} cards`;
       if (set.icon_svg_uri) el.setIcon.style.maskImage = el.setIcon.style.webkitMaskImage = `url("${set.icon_svg_uri}")`;
@@ -946,7 +961,10 @@
         <button class="retry" id="retry-btn">Retry</button>
       `;
       document.getElementById('retry-btn').addEventListener('click', () => {
-        el.status.innerHTML = '<div class="pulse"></div>Fetching the latest set from Scryfall…';
+        const requestedSet = getSetCodeFromUrl();
+        el.status.innerHTML = requestedSet
+          ? `<div class="pulse"></div>Fetching set “${requestedSet}” from Scryfall…`
+          : '<div class="pulse"></div>Fetching the latest set from Scryfall…';
         init();
       });
     }
