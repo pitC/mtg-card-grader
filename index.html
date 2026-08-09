@@ -513,8 +513,9 @@
 (function () {
   'use strict';
 
-  const NPOINT_BIN_KEY = 'scryfallCardGraderNpointBinId';
-  const NPOINT_SKIPPED_KEY = 'scryfallCardGraderNpointSkipped';
+  const PANTRY_ID_KEY = 'scryfallCardGraderPantryId';
+  const PANTRY_SKIPPED_KEY = 'scryfallCardGraderPantrySkipped';
+  const PANTRY_BASKET = 'mtg-card-grades';
   const LOCAL_KEY = 'scryfallCardGraderGrades';
   const GRADES = ['A', 'B', 'C', 'D', 'E'];
 
@@ -526,7 +527,7 @@
     filter: 'all',
     tab: 'grade',
     grades: loadLocalCache(),
-    npointBinId: null,
+    pantryId: null,
     cloudSync: false,
   };
 
@@ -562,92 +563,93 @@
     localStorage.setItem(LOCAL_KEY, JSON.stringify(state.grades));
   }
 
-  function loadStoredBinId() {
-    return localStorage.getItem(NPOINT_BIN_KEY);
+  function loadStoredPantryId() {
+    return localStorage.getItem(PANTRY_ID_KEY);
   }
 
-  function saveStoredBinId(binId) {
-    localStorage.setItem(NPOINT_BIN_KEY, binId);
-    localStorage.removeItem(NPOINT_SKIPPED_KEY);
+  function saveStoredPantryId(pantryId) {
+    localStorage.setItem(PANTRY_ID_KEY, pantryId);
+    localStorage.removeItem(PANTRY_SKIPPED_KEY);
   }
 
-  function markNpointSkipped() {
-    localStorage.setItem(NPOINT_SKIPPED_KEY, '1');
-    localStorage.removeItem(NPOINT_BIN_KEY);
+  function markPantrySkipped() {
+    localStorage.setItem(PANTRY_SKIPPED_KEY, '1');
+    localStorage.removeItem(PANTRY_ID_KEY);
   }
 
-  function isNpointSkipped() {
-    return localStorage.getItem(NPOINT_SKIPPED_KEY) === '1';
+  function isPantrySkipped() {
+    return localStorage.getItem(PANTRY_SKIPPED_KEY) === '1';
   }
 
-  function normalizeBinId(input) {
+  function normalizePantryId(input) {
     const trimmed = input.trim();
     if (!trimmed) return null;
-    const match = trimmed.match(/npoint\.io\/([^/?#]+)/i);
+    // Accept a full getpantry.cloud URL/API path or a bare pantry ID.
+    const match = trimmed.match(/pantry\/([^/?#]+)/i);
     return match ? match[1] : trimmed;
   }
 
-  function getNpointUrl() {
-    return `https://api.npoint.io/${state.npointBinId}`;
+  function getPantryUrl() {
+    return `https://getpantry.cloud/apiv1/pantry/${state.pantryId}/basket/${PANTRY_BASKET}`;
   }
 
   function useLocalSyncOnly(reason) {
     state.cloudSync = false;
-    state.npointBinId = null;
+    state.pantryId = null;
     setSyncStatus(reason || 'Local only');
   }
 
-  function showNpointSetup() {
+  function showPantrySetup() {
     return new Promise(resolve => {
       el.status.style.display = 'block';
       el.status.innerHTML = `
         <div class="setup-box">
-          <p>Sync grades across devices with an <a href="https://www.npoint.io/" target="_blank" rel="noopener">npoint.io</a> bin, or keep them in this browser only.</p>
-          <input class="setup-input" id="npoint-input" type="text" placeholder="Paste bin ID or full npoint URL" autocomplete="off" spellcheck="false">
+          <p>Sync grades across devices with a free <a href="https://getpantry.cloud/" target="_blank" rel="noopener">Pantry</a>, or keep them in this browser only.</p>
+          <input class="setup-input" id="pantry-input" type="text" placeholder="Paste your Pantry ID" autocomplete="off" spellcheck="false">
           <div class="setup-hint">
-            Create a free bin at <a href="https://www.npoint.io/" target="_blank" rel="noopener">npoint.io</a>.
-            Your bin page will look like <a href="https://www.npoint.io/" target="_blank" rel="noopener">npoint.io/your-bin-id</a>.
-            Initialize the bin with an empty JSON object: <code>{}</code>.
+            Create a free pantry at <a href="https://getpantry.cloud/#/" target="_blank" rel="noopener">getpantry.cloud</a>
+            and copy the Pantry ID (a UUID) from your dashboard. The <code>${PANTRY_BASKET}</code> basket
+            is created automatically the first time you grade a card — no manual setup needed.
           </div>
           <div class="setup-actions">
-            <button class="primary" id="npoint-save">Save &amp; sync</button>
-            <button id="npoint-skip">Skip (local only)</button>
+            <button class="primary" id="pantry-save">Save &amp; sync</button>
+            <button id="pantry-skip">Skip (local only)</button>
           </div>
         </div>
       `;
 
-      const input = document.getElementById('npoint-input');
+      const input = document.getElementById('pantry-input');
       input.focus();
 
-      document.getElementById('npoint-save').addEventListener('click', () => {
-        const binId = normalizeBinId(input.value);
-        if (!binId) {
+      document.getElementById('pantry-save').addEventListener('click', () => {
+        const pantryId = normalizePantryId(input.value);
+        if (!pantryId) {
           input.focus();
           return;
         }
-        saveStoredBinId(binId);
-        resolve(binId);
+        saveStoredPantryId(pantryId);
+        resolve(pantryId);
       });
 
-      document.getElementById('npoint-skip').addEventListener('click', () => {
-        markNpointSkipped();
+      document.getElementById('pantry-skip').addEventListener('click', () => {
+        markPantrySkipped();
         resolve(null);
       });
 
       input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') document.getElementById('npoint-save').click();
+        if (e.key === 'Enter') document.getElementById('pantry-save').click();
       });
     });
   }
 
   async function ensureSyncConfig() {
-    let binId = loadStoredBinId();
-    if (!binId && !isNpointSkipped()) {
-      binId = await showNpointSetup();
+    let pantryId = loadStoredPantryId();
+    if (!pantryId && !isPantrySkipped()) {
+      pantryId = await showPantrySetup();
     }
 
-    if (binId) {
-      state.npointBinId = binId;
+    if (pantryId) {
+      state.pantryId = pantryId;
       state.cloudSync = true;
       return;
     }
@@ -661,7 +663,7 @@
 
   // Cloud sync when configured; otherwise local storage only.
   async function fetchAllGrades() {
-    if (!state.cloudSync || !state.npointBinId) {
+    if (!state.cloudSync || !state.pantryId) {
       state.grades = loadLocalCache();
       setSyncStatus('Local only');
       return;
@@ -669,10 +671,19 @@
 
     setSyncStatus('Syncing…');
     try {
-      const res = await fetch(getNpointUrl(), { headers: { 'Accept': 'application/json' } });
-      if (!res.ok) throw new Error('GET failed: ' + res.status);
-      const data = await res.json();
-      state.grades = data || {};
+      const res = await fetch(getPantryUrl(), {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+      if (res.status === 400 || res.status === 404) {
+        // Basket doesn't exist yet — nothing has been synced from this pantry so far.
+        state.grades = {};
+      } else if (!res.ok) {
+        throw new Error('GET failed: ' + res.status);
+      } else {
+        const data = await res.json();
+        state.grades = data || {};
+      }
       saveLocalCache();
       setSyncStatus('Synced');
     } catch (e) {
@@ -682,27 +693,25 @@
     }
   }
 
+  // Pantry's POST creates the basket if missing and fully overwrites it otherwise,
+  // so we always send the complete current grade map. This avoids the fetch-then-merge
+  // race that a read-modify-write cycle would introduce, and correctly propagates
+  // cleared grades (which a shallow-merge PUT would not).
   async function persistGrades() {
     saveLocalCache();
-    if (!state.cloudSync || !state.npointBinId) {
+    if (!state.cloudSync || !state.pantryId) {
       setSyncStatus('Local only');
       return;
     }
 
     setSyncStatus('Saving…');
     try {
-      const latest = await fetch(getNpointUrl(), { headers: { 'Accept': 'application/json' } })
-        .then(r => (r.ok ? r.json() : {}))
-        .catch(() => ({}));
-      const merged = { ...latest, ...state.grades };
-      state.grades = merged;
-      const res = await fetch(getNpointUrl(), {
+      const res = await fetch(getPantryUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(merged),
+        body: JSON.stringify(state.grades),
       });
       if (!res.ok) throw new Error('POST failed: ' + res.status);
-      saveLocalCache();
       setSyncStatus('Synced');
     } catch (e) {
       console.error('[Card Grader] Cloud sync error', e);
