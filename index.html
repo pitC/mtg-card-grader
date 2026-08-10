@@ -509,15 +509,25 @@
   <div id="grid-view" class="grid-view" style="display:none;"></div>
 </div>
 
-<script>
+<script type="module">
 (function () {
   'use strict';
 
-  const PANTRY_ID_KEY = 'scryfallCardGraderPantryId';
-  const PANTRY_SKIPPED_KEY = 'scryfallCardGraderPantrySkipped';
-  const PANTRY_BASKET = 'mtg-card-grades';
-  const LOCAL_KEY = 'scryfallCardGraderGrades';
+  const COLLECTION_KEY = 'scryfallCardGraderFirestoreCollection';
+  const FIRESTORE_SKIPPED_KEY = 'scryfallCardGraderFirestoreSkipped';
+  const LEGACY_LOCAL_KEY = 'scryfallCardGraderGrades';
+  const LOCAL_KEY_PREFIX = 'scryfallCardGraderGrades:';
   const GRADES = ['A', 'B', 'C', 'D', 'E'];
+  const FIREBASE_VERSION = '12.17.1';
+  const firebaseConfig = {
+    apiKey: 'AIzaSyAUReVkoQ1fSSztd8cQXHmtyMNFUQS2hk0',
+    authDomain: 'mtg-card-grader.firebaseapp.com',
+    projectId: 'mtg-card-grader',
+    storageBucket: 'mtg-card-grader.firebasestorage.app',
+    messagingSenderId: '479390474930',
+    appId: '1:479390474930:web:297c0047064abdc1031fab',
+  };
+  let firestoreApiPromise = null;
 
   const state = {
     setCode: null,
@@ -526,8 +536,8 @@
     index: 0,
     filter: 'all',
     tab: 'grade',
-    grades: loadLocalCache(),
-    pantryId: null,
+    grades: {},
+    collectionKey: null,
     cloudSync: false,
   };
 
@@ -554,102 +564,139 @@
     syncStatus: document.getElementById('sync-status'),
   };
 
+  function parseStoredGrades(value) {
+    try {
+      const grades = JSON.parse(value);
+      return grades && typeof grades === 'object' && !Array.isArray(grades) ? grades : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function localCacheKey(setCode) {
+    return `${LOCAL_KEY_PREFIX}${setCode}`;
+  }
+
   function loadLocalCache() {
-    try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || {}; }
-    catch (e) { return {}; }
+    if (!state.setCode) return {};
+
+    const stored = localStorage.getItem(localCacheKey(state.setCode));
+    if (stored !== null) return parseStoredGrades(stored);
+
+    // Migrate cards for this set from the original cross-set cache. Keep the
+    // legacy cache so other sets can migrate when they are opened later.
+    const legacyGrades = parseStoredGrades(localStorage.getItem(LEGACY_LOCAL_KEY));
+    const cardIds = new Set(state.cards.map(card => card.id));
+    const migrated = Object.fromEntries(
+      Object.entries(legacyGrades).filter(([cardId]) => cardIds.has(cardId))
+    );
+    localStorage.setItem(localCacheKey(state.setCode), JSON.stringify(migrated));
+    return migrated;
   }
 
   function saveLocalCache() {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(state.grades));
+    if (!state.setCode) return;
+    localStorage.setItem(localCacheKey(state.setCode), JSON.stringify(state.grades));
   }
 
-  function loadStoredPantryId() {
-    return localStorage.getItem(PANTRY_ID_KEY);
+  function loadStoredCollectionKey() {
+    return localStorage.getItem(COLLECTION_KEY);
   }
 
-  function saveStoredPantryId(pantryId) {
-    localStorage.setItem(PANTRY_ID_KEY, pantryId);
-    localStorage.removeItem(PANTRY_SKIPPED_KEY);
+  function saveStoredCollectionKey(collectionKey) {
+    localStorage.setItem(COLLECTION_KEY, collectionKey);
+    localStorage.removeItem(FIRESTORE_SKIPPED_KEY);
   }
 
-  function markPantrySkipped() {
-    localStorage.setItem(PANTRY_SKIPPED_KEY, '1');
-    localStorage.removeItem(PANTRY_ID_KEY);
+  function markFirestoreSkipped() {
+    localStorage.setItem(FIRESTORE_SKIPPED_KEY, '1');
+    localStorage.removeItem(COLLECTION_KEY);
   }
 
-  function isPantrySkipped() {
-    return localStorage.getItem(PANTRY_SKIPPED_KEY) === '1';
+  function isFirestoreSkipped() {
+    return localStorage.getItem(FIRESTORE_SKIPPED_KEY) === '1';
   }
 
-  function normalizePantryId(input) {
+  function normalizeCollectionKey(input) {
     const trimmed = input.trim();
-    if (!trimmed) return null;
-    // Accept a full getpantry.cloud URL/API path or a bare pantry ID.
-    const match = trimmed.match(/pantry\/([^/?#]+)/i);
-    return match ? match[1] : trimmed;
+    return trimmed && !trimmed.includes('/') ? trimmed : null;
   }
 
-  function getPantryUrl() {
-    return `https://getpantry.cloud/apiv1/pantry/${state.pantryId}/basket/${PANTRY_BASKET}`;
+  async function getFirestoreApi() {
+    if (!firestoreApiPromise) {
+      firestoreApiPromise = Promise.all([
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+        import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`),
+      ]).then(([firebaseApp, firestore]) => ({
+        db: firestore.getFirestore(firebaseApp.initializeApp(firebaseConfig)),
+        doc: firestore.doc,
+        getDoc: firestore.getDoc,
+        setDoc: firestore.setDoc,
+      }));
+    }
+    return firestoreApiPromise;
   }
 
   function useLocalSyncOnly(reason) {
     state.cloudSync = false;
-    state.pantryId = null;
+    state.collectionKey = null;
     setSyncStatus(reason || 'Local only');
   }
 
-  function showPantrySetup() {
+  function showFirestoreSetup() {
     return new Promise(resolve => {
       el.status.style.display = 'block';
       el.status.innerHTML = `
         <div class="setup-box">
-          <p>Sync grades across devices with a free <a href="https://getpantry.cloud/" target="_blank" rel="noopener">Pantry</a>, or keep them in this browser only.</p>
-          <input class="setup-input" id="pantry-input" type="text" placeholder="Paste your Pantry ID" autocomplete="off" spellcheck="false">
+          <p>Sync grades across devices with the shared collection key from the webpage owner, or keep them in this browser only.</p>
+          <input class="setup-input" id="collection-input" type="password" placeholder="Enter the shared collection key" autocomplete="off" spellcheck="false">
           <div class="setup-hint">
-            Create a free pantry at <a href="https://getpantry.cloud/#/" target="_blank" rel="noopener">getpantry.cloud</a>
-            and copy the Pantry ID (a UUID) from your dashboard. The <code>${PANTRY_BASKET}</code> basket
-            is created automatically the first time you grade a card — no manual setup needed.
+            Ask the webpage owner for the key. Each set is stored in its own Firestore document.
+            Leave the key unshared except with people who should be able to read and update these grades.
           </div>
           <div class="setup-actions">
-            <button class="primary" id="pantry-save">Save &amp; sync</button>
-            <button id="pantry-skip">Skip (local only)</button>
+            <button class="primary" id="collection-save">Save &amp; sync</button>
+            <button id="firestore-skip">Skip (local only)</button>
           </div>
         </div>
       `;
 
-      const input = document.getElementById('pantry-input');
+      const input = document.getElementById('collection-input');
       input.focus();
 
-      document.getElementById('pantry-save').addEventListener('click', () => {
-        const pantryId = normalizePantryId(input.value);
-        if (!pantryId) {
+      document.getElementById('collection-save').addEventListener('click', () => {
+        const collectionKey = normalizeCollectionKey(input.value);
+        if (!collectionKey) {
+          input.setCustomValidity('Enter a collection key without slashes.');
+          input.reportValidity();
           input.focus();
           return;
         }
-        saveStoredPantryId(pantryId);
-        resolve(pantryId);
+        input.setCustomValidity('');
+        saveStoredCollectionKey(collectionKey);
+        resolve(collectionKey);
       });
 
-      document.getElementById('pantry-skip').addEventListener('click', () => {
-        markPantrySkipped();
+      document.getElementById('firestore-skip').addEventListener('click', () => {
+        markFirestoreSkipped();
         resolve(null);
       });
 
       input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') document.getElementById('pantry-save').click();
+        input.setCustomValidity('');
+        if (e.key === 'Enter') document.getElementById('collection-save').click();
       });
     });
   }
 
   async function ensureSyncConfig() {
-    let pantryId = loadStoredPantryId();
-    if (!pantryId && !isPantrySkipped()) {
-      pantryId = await showPantrySetup();
+    let collectionKey = loadStoredCollectionKey();
+    if (!collectionKey && !isFirestoreSkipped()) {
+      collectionKey = await showFirestoreSetup();
     }
 
-    if (pantryId) {
-      state.pantryId = pantryId;
+    if (collectionKey) {
+      state.collectionKey = collectionKey;
       state.cloudSync = true;
       return;
     }
@@ -661,60 +708,44 @@
     el.syncStatus.textContent = text;
   }
 
-  // Cloud sync when configured; otherwise local storage only.
+  // Firestore sync when configured; otherwise per-set local storage only.
   async function fetchAllGrades() {
-    if (!state.cloudSync || !state.pantryId) {
-      state.grades = loadLocalCache();
+    const localGrades = loadLocalCache();
+    if (!state.cloudSync || !state.collectionKey) {
+      state.grades = localGrades;
       setSyncStatus('Local only');
       return;
     }
 
     setSyncStatus('Syncing…');
     try {
-      const res = await fetch(getPantryUrl(), {
-        headers: { 'Accept': 'application/json' },
-        cache: 'no-store',
-      });
-      if (res.status === 400 || res.status === 404) {
-        // Basket doesn't exist yet — nothing has been synced from this pantry so far.
-        state.grades = {};
-      } else if (!res.ok) {
-        throw new Error('GET failed: ' + res.status);
-      } else {
-        const data = await res.json();
-        state.grades = data || {};
-      }
+      const { db, doc, getDoc } = await getFirestoreApi();
+      const snapshot = await getDoc(doc(db, state.collectionKey, state.setCode));
+      state.grades = snapshot.exists() ? snapshot.data() : {};
       saveLocalCache();
       setSyncStatus('Synced');
     } catch (e) {
-      console.error('[Card Grader] Cloud sync error', e);
+      console.error('[Card Grader] Firestore sync error', e);
       useLocalSyncOnly('Local only (sync failed)');
-      state.grades = loadLocalCache();
+      state.grades = localGrades;
     }
   }
 
-  // Pantry's POST creates the basket if missing and fully overwrites it otherwise,
-  // so we always send the complete current grade map. This avoids the fetch-then-merge
-  // race that a read-modify-write cycle would introduce, and correctly propagates
-  // cleared grades (which a shallow-merge PUT would not).
+  // Each Firestore document contains the complete grade map for one set.
   async function persistGrades() {
     saveLocalCache();
-    if (!state.cloudSync || !state.pantryId) {
+    if (!state.cloudSync || !state.collectionKey) {
       setSyncStatus('Local only');
       return;
     }
 
     setSyncStatus('Saving…');
     try {
-      const res = await fetch(getPantryUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state.grades),
-      });
-      if (!res.ok) throw new Error('POST failed: ' + res.status);
+      const { db, doc, setDoc } = await getFirestoreApi();
+      await setDoc(doc(db, state.collectionKey, state.setCode), state.grades);
       setSyncStatus('Synced');
     } catch (e) {
-      console.error('[Card Grader] Cloud sync error', e);
+      console.error('[Card Grader] Firestore sync error', e);
       useLocalSyncOnly('Local only (sync failed)');
     }
   }
@@ -887,7 +918,11 @@
   async function gradeCurrentCard(grade) {
     if (!state.filtered.length) return;
     const card = state.filtered[state.index];
-    state.grades[card.id] = { grade, gradedAt: new Date().toISOString() };
+    state.grades[card.id] = {
+      cardName: card.name,
+      grade,
+      gradedAt: new Date().toISOString(),
+    };
     render();
     await persistGrades();
   }
