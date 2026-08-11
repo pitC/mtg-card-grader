@@ -436,6 +436,178 @@
     font-size: 13px;
   }
 
+  /* ---------- Analysis view ---------- */
+
+  .analysis-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 14px 20px;
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-dim);
+  }
+
+  .chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    border: 1px solid var(--line-bright);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 11px;
+    border-radius: 999px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .chip:hover {
+    border-color: var(--brass);
+    color: var(--ink);
+  }
+
+  .chip.active {
+    background: var(--brass-dim);
+    border-color: var(--brass);
+    color: var(--ink);
+  }
+
+  .chip.d-w { color: #e7ecf0; }
+  .chip.d-u { color: #6fb3e8; }
+  .chip.d-b { color: #cbb79a; }
+  .chip.d-r { color: #e37b6c; }
+  .chip.d-g { color: #85cf85; }
+  .chip.d-c { color: #aab4bc; }
+  .chip.d-w.active, .chip.d-u.active, .chip.d-b.active,
+  .chip.d-r.active, .chip.d-g.active, .chip.d-c.active { color: var(--ink); }
+
+  .reset-btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--line-bright);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 12px;
+    border-radius: 6px;
+    align-self: flex-end;
+  }
+
+  .reset-btn:hover { color: var(--ink); border-color: var(--brass); }
+
+  .lane { margin-bottom: 22px; }
+
+  .lane-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .lane-grade {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--brass-bright);
+  }
+
+  .lane-grade.muted { color: var(--muted-dim); }
+
+  .lane-count {
+    font-size: 11px;
+    color: var(--muted-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .lane-track {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 2px 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--table-center) transparent;
+  }
+
+  .lane-track::-webkit-scrollbar { height: 8px; }
+  .lane-track::-webkit-scrollbar-thumb { background: var(--table-center); border-radius: 4px; }
+  .lane-track::-webkit-scrollbar-track { background: transparent; }
+
+  .lane-card {
+    flex: 0 0 auto;
+    width: 118px;
+    border-radius: 4.5% / 3.3%;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 0;
+    line-height: 0;
+  }
+
+  .lane-card img {
+    width: 100%;
+    display: block;
+    opacity: 0.9;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+
+  .lane-card:hover img {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+
+  .lane-empty {
+    font-size: 11px;
+    color: var(--muted-dim);
+    padding: 14px 2px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------- Hover preview ---------- */
+
+  .hover-card {
+    position: fixed;
+    z-index: 100;
+    width: 280px;
+    max-width: 38vw;
+    pointer-events: none;
+    border-radius: 4.5% / 3.3%;
+    overflow: hidden;
+    border: 1px solid var(--line-bright);
+    background: var(--panel);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.65);
+    line-height: 0;
+  }
+
+  .hover-card img {
+    width: 100%;
+    display: block;
+  }
+
+  /* Analysis mode is desktop-only */
+  @media (max-width: 768px) {
+    .tab-group button[data-tab="analysis"] { display: none; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .pulse, .seal { animation: none; }
   }
@@ -462,6 +634,7 @@
       <div class="tab-group" id="tab-group">
         <button data-tab="grade" class="active">Grade</button>
         <button data-tab="grid">Grid</button>
+        <button data-tab="analysis">Analysis</button>
       </div>
       <div class="pill-group" id="filter-group">
         <button data-filter="all" class="active">All</button>
@@ -507,6 +680,15 @@
   </div>
 
   <div id="grid-view" class="grid-view" style="display:none;"></div>
+
+  <div id="analysis-view" style="display:none;">
+    <div id="analysis-filters" class="analysis-filters"></div>
+    <div id="analysis-lanes"></div>
+  </div>
+
+  <div id="hover-card" class="hover-card" style="display:none;">
+    <img id="hover-card-img" src="" alt="">
+  </div>
 </div>
 
 <script type="module">
@@ -518,6 +700,15 @@
   const LEGACY_LOCAL_KEY = 'scryfallCardGraderGrades';
   const LOCAL_KEY_PREFIX = 'scryfallCardGraderGrades:';
   const GRADES = ['A', 'B', 'C', 'D', 'E'];
+  const ANALYSIS_COLOR_VALUES = [
+    { value: 'W', cls: 'd-w' },
+    { value: 'U', cls: 'd-u' },
+    { value: 'B', cls: 'd-b' },
+    { value: 'R', cls: 'd-r' },
+    { value: 'G', cls: 'd-g' },
+    { value: 'C', cls: 'd-c' },
+  ];
+  const ANALYSIS_RARITY_VALUES = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
   const FIREBASE_VERSION = '12.17.1';
   const firebaseConfig = {
     apiKey: 'AIzaSyAUReVkoQ1fSSztd8cQXHmtyMNFUQS2hk0',
@@ -539,6 +730,7 @@
     grades: {},
     collectionKey: null,
     cloudSync: false,
+    analysisFilters: { grades: [], colors: [], rarities: [] },
   };
 
   const el = {
@@ -562,6 +754,11 @@
     tabGroup: document.getElementById('tab-group'),
     filterGroup: document.getElementById('filter-group'),
     syncStatus: document.getElementById('sync-status'),
+    analysisView: document.getElementById('analysis-view'),
+    analysisFilters: document.getElementById('analysis-filters'),
+    analysisLanes: document.getElementById('analysis-lanes'),
+    hoverCard: document.getElementById('hover-card'),
+    hoverCardImg: document.getElementById('hover-card-img'),
   };
 
   function parseStoredGrades(value) {
@@ -750,9 +947,13 @@
     }
   }
 
-  function cardImageUrl(card) {
-    if (card.image_uris) return card.image_uris.normal;
-    if (card.card_faces && card.card_faces[0].image_uris) return card.card_faces[0].image_uris.normal;
+  function cardImageUrl(card, size) {
+    size = size || 'normal';
+    if (card.image_uris) return card.image_uris[size] || card.image_uris.normal || '';
+    if (card.card_faces && card.card_faces[0].image_uris) {
+      const uris = card.card_faces[0].image_uris;
+      return uris[size] || uris.normal || '';
+    }
     return '';
   }
 
@@ -859,6 +1060,7 @@
   }
 
   function renderGridView() {
+    hideHoverCard();
     el.gridView.innerHTML = '';
     if (!state.filtered.length) {
       const note = document.createElement('div');
@@ -873,6 +1075,7 @@
     state.filtered.forEach((card, i) => {
       const item = document.createElement('button');
       item.className = 'grid-item';
+      item._card = card;
       const img = document.createElement('img');
       img.src = cardImageUrl(card);
       img.alt = card.name;
@@ -893,11 +1096,143 @@
     });
   }
 
+  function cardGrade(card) {
+    return state.grades[card.id] ? state.grades[card.id].grade : null;
+  }
+
+  function analysisMatches(card) {
+    const f = state.analysisFilters;
+
+    if (f.grades.length && !f.grades.includes(cardGrade(card))) return false;
+
+    if (f.colors.length) {
+      const colors = card.colors || [];
+      const wantsColorless = f.colors.includes('C');
+      const colorHits = f.colors.filter(c => c !== 'C').some(c => colors.includes(c));
+      const isColorless = colors.length === 0;
+      if (!(wantsColorless && isColorless) && !colorHits) return false;
+    }
+
+    if (f.rarities.length && !f.rarities.includes(card.rarity)) return false;
+
+    return true;
+  }
+
+  function buildAnalysisFilterBar() {
+    const groups = [
+      {
+        key: 'grades',
+        label: 'Grade',
+        values: GRADES.concat(['ungraded']).map(v => ({ value: v, cls: '' })),
+      },
+      { key: 'colors', label: 'Colour', values: ANALYSIS_COLOR_VALUES },
+      {
+        key: 'rarities',
+        label: 'Rarity',
+        values: ANALYSIS_RARITY_VALUES.map(v => ({ value: v, cls: '' })),
+      },
+    ];
+
+    groups.forEach(g => {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'filter-group';
+
+      const label = document.createElement('span');
+      label.className = 'filter-label';
+      label.textContent = g.label;
+      groupEl.appendChild(label);
+
+      const chips = document.createElement('div');
+      chips.className = 'chips';
+      g.values.forEach(v => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip' + (v.cls ? ' ' + v.cls : '');
+        btn.dataset.group = g.key;
+        btn.dataset.value = v.value;
+        btn.textContent = v.value.toUpperCase();
+        chips.appendChild(btn);
+      });
+      groupEl.appendChild(chips);
+      el.analysisFilters.appendChild(groupEl);
+    });
+
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'reset-btn';
+    reset.textContent = 'Reset filters';
+    el.analysisFilters.appendChild(reset);
+  }
+
+  function syncAnalysisChips() {
+    [...el.analysisFilters.querySelectorAll('button.chip')].forEach(btn => {
+      btn.classList.toggle('active', state.analysisFilters[btn.dataset.group].includes(btn.dataset.value));
+    });
+  }
+
+  function renderAnalysisView() {
+    hideHoverCard();
+    const filtered = state.cards.filter(analysisMatches);
+    const lanes = [
+      ...GRADES.map(g => ({ label: g, cards: filtered.filter(c => cardGrade(c) === g) })),
+      { label: 'Ungraded', cards: filtered.filter(c => !cardGrade(c)) },
+    ];
+
+    el.analysisLanes.innerHTML = '';
+    lanes.forEach(lane => {
+      const laneEl = document.createElement('div');
+      laneEl.className = 'lane';
+
+      const head = document.createElement('div');
+      head.className = 'lane-head';
+      const grade = document.createElement('span');
+      grade.className = 'lane-grade' + (lane.label === 'Ungraded' ? ' muted' : '');
+      grade.textContent = lane.label;
+      const count = document.createElement('span');
+      count.className = 'lane-count';
+      count.textContent = `${lane.cards.length} ${lane.cards.length === 1 ? 'card' : 'cards'}`;
+      head.appendChild(grade);
+      head.appendChild(count);
+      laneEl.appendChild(head);
+
+      const track = document.createElement('div');
+      track.className = 'lane-track';
+      if (!lane.cards.length) {
+        const empty = document.createElement('div');
+        empty.className = 'lane-empty';
+        empty.textContent = 'No cards match';
+        track.appendChild(empty);
+      } else {
+        lane.cards.forEach(card => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'lane-card';
+          btn.title = card.name;
+          btn._card = card;
+          const img = document.createElement('img');
+          img.src = cardImageUrl(card);
+          img.alt = card.name;
+          img.loading = 'lazy';
+          btn.appendChild(img);
+          btn.addEventListener('click', () => {
+            state.filter = 'all';
+            state.index = state.cards.indexOf(card);
+            setTab('grade');
+          });
+          track.appendChild(btn);
+        });
+      }
+      laneEl.appendChild(track);
+      el.analysisLanes.appendChild(laneEl);
+    });
+  }
+
   function render() {
     applyFilter();
     updateProgress();
     if (state.tab === 'grade') renderGradeView();
-    else renderGridView();
+    else if (state.tab === 'grid') renderGridView();
+    else renderAnalysisView();
   }
 
   function setTab(tab) {
@@ -905,6 +1240,7 @@
     [...el.tabGroup.children].forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
     el.gridView.style.display = tab === 'grid' ? 'grid' : 'none';
+    el.analysisView.style.display = tab === 'analysis' ? 'block' : 'none';
     render();
   }
 
@@ -962,6 +1298,66 @@
   el.nextBtn.addEventListener('click', () => move(1));
   el.clearBtn.addEventListener('click', clearCurrentCard);
 
+  el.analysisFilters.addEventListener('click', e => {
+    const chip = e.target.closest('button.chip');
+    if (chip) {
+      const arr = state.analysisFilters[chip.dataset.group];
+      const idx = arr.indexOf(chip.dataset.value);
+      if (idx >= 0) arr.splice(idx, 1);
+      else arr.push(chip.dataset.value);
+      syncAnalysisChips();
+      renderAnalysisView();
+      return;
+    }
+    if (e.target.closest('.reset-btn')) {
+      state.analysisFilters = { grades: [], colors: [], rarities: [] };
+      syncAnalysisChips();
+      renderAnalysisView();
+    }
+  });
+
+  const hoverSupported = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover)').matches;
+
+  function showHoverCard(card, x, y) {
+    el.hoverCardImg.src = cardImageUrl(card, 'large');
+    el.hoverCardImg.alt = card.name;
+    el.hoverCard.style.display = 'block';
+    positionHoverCard(x, y);
+  }
+
+  function hideHoverCard() {
+    el.hoverCard.style.display = 'none';
+  }
+
+  function positionHoverCard(x, y) {
+    const preview = el.hoverCard;
+    const w = preview.offsetWidth;
+    const h = preview.offsetHeight;
+    let left = x + 18;
+    if (left + w > window.innerWidth - 8) left = x - w - 18;
+    let top = y - h / 2;
+    top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+    preview.style.left = left + 'px';
+    preview.style.top = top + 'px';
+  }
+
+  if (hoverSupported) {
+    document.addEventListener('mouseover', e => {
+      const item = e.target.closest('.lane-card, .grid-item');
+      if (!item || !item._card) return;
+      showHoverCard(item._card, e.clientX, e.clientY);
+    });
+    document.addEventListener('mousemove', e => {
+      if (el.hoverCard.style.display === 'block') positionHoverCard(e.clientX, e.clientY);
+    });
+    document.addEventListener('mouseout', e => {
+      const item = e.target.closest('.lane-card, .grid-item');
+      if (!item) return;
+      if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.lane-card, .grid-item')) return;
+      hideHoverCard();
+    });
+  }
+
   document.addEventListener('keydown', e => {
     if (state.tab !== 'grade') return;
     const key = e.key.toUpperCase();
@@ -992,6 +1388,8 @@
       const cards = await fetchSetCards(set.code);
       if (!cards.length) throw new Error('No cards with images found in this set');
       state.cards = cards;
+
+      buildAnalysisFilterBar();
 
       await fetchAllGrades();
 
