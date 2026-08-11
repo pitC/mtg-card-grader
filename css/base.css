@@ -1,0 +1,231 @@
+:root{
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --font-serif: ui-serif, Georgia, 'Times New Roman', serif;
+  --bg: #12161a;
+  --panel: #1a2027;
+  --table-center: #262e37;
+  --table-edge: #12161a;
+  --ink: #eef2f4;
+  --muted: #8fa0ac;
+  --muted-dim: #5c6b76;
+  --brass: #c99a44;
+  --brass-bright: #e2b968;
+  --brass-dim: #8a6a2f;
+  --crimson: #a8425a;
+  --line: rgba(255,255,255,0.08);
+  --line-bright: rgba(255,255,255,0.16);
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+}
+
+::selection { background: var(--brass-dim); color: var(--ink); }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+
+/* ---------- Header ---------- */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+.set-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.set-icon {
+  width: 26px;
+  height: 26px;
+  background-color: var(--brass);
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  flex-shrink: 0;
+}
+
+.set-name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: 0.01em;
+}
+
+.set-meta {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill-group, .tab-group {
+  display: flex;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.pill-group button, .tab-group button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pill-group button.active, .tab-group button.active {
+  background: var(--brass-dim);
+  color: var(--ink);
+}
+
+.progress {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.progress strong { color: var(--brass-bright); font-weight: 600; }
+
+/* ---------- Status states ---------- */
+
+.status-box {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--muted);
+}
+
+.status-box .pulse {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--table-center), transparent 70%);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.4); opacity: 1; }
+}
+
+.status-box .retry {
+  margin-top: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--ink);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.setup-box {
+  max-width: 440px;
+  margin: 0 auto;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.setup-box p {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.setup-box a {
+  color: var(--brass-bright);
+}
+
+.setup-input {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.setup-input:focus {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
+.setup-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted-dim);
+}
+
+.setup-hint code {
+  color: var(--brass-bright);
+  font-family: inherit;
+}
+
+.setup-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.setup-actions button {
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  color: var(--ink);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.setup-actions button.primary {
+  background: var(--brass-dim);
+  border-color: var(--brass);
+  color: var(--ink);
+}
