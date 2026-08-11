@@ -3,7 +3,8 @@
 A static browser app for speed-grading Magic: The Gathering cards from a
 Scryfall set. Assign each card a grade of **A**–**E** and browse the results
 across three views. Grades stay in the current browser by default, or sync
-through Cloud Firestore so several people can grade the same set together.
+through Cloud Firestore so you can grade on multiple devices and several
+people can grade the same set together.
 
 There is no build step, no server, and no authentication: the whole app is plain
 HTML, CSS, and JavaScript loaded from `index.html`. Card data comes from the

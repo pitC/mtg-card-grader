@@ -9,6 +9,7 @@ import {
   toggleAnalysisChip,
   resetAnalysisFilters,
   syncAnalysisChips,
+  findNextUngradedIndex,
 } from '../js/render.js';
 
 function makeChip(group, value) {
@@ -105,6 +106,23 @@ describe('applyFilter', () => {
     const state = makeState({ filter: 'ungraded', grades: { a: { grade: 'A' } }, index: 5 });
     applyFilter(state);
     expect(state.index).toBe(1);
+  });
+});
+
+describe('findNextUngradedIndex', () => {
+  it('returns the index of the first ungraded card', () => {
+    const state = makeState({ grades: { a: { grade: 'A' }, c: { grade: 'C' } } });
+    expect(findNextUngradedIndex(state)).toBe(1);
+  });
+
+  it('returns -1 when every card is graded', () => {
+    const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'B' }, c: { grade: 'C' } } });
+    expect(findNextUngradedIndex(state)).toBe(-1);
+  });
+
+  it('returns 0 when no cards are graded', () => {
+    const state = makeState();
+    expect(findNextUngradedIndex(state)).toBe(0);
   });
 });
 

@@ -10,6 +10,7 @@ import {
   toggleAnalysisChip,
   resetAnalysisFilters,
   setupHoverEvents,
+  findNextUngradedIndex,
 } from './render.js';
 
 const state = {
@@ -185,6 +186,9 @@ async function init() {
       state.cloudSync = false;
       state.collectionKey = null;
     }
+
+    const firstUngraded = findNextUngradedIndex(state);
+    if (firstUngraded >= 0) state.index = firstUngraded;
 
     el.status.style.display = 'none';
     el.gradeView.style.display = 'block';

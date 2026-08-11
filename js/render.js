@@ -8,6 +8,10 @@ export function applyFilter(state) {
   if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
 }
 
+export function findNextUngradedIndex(state) {
+  return state.cards.findIndex(c => !state.grades[c.id]);
+}
+
 export function updateProgress(state, el) {
   const gradedCount = state.cards.filter(c => state.grades[c.id]).length;
   el.progress.innerHTML = `<strong>${gradedCount}</strong> / ${state.cards.length} graded`;
