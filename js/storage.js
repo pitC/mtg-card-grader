@@ -8,7 +8,7 @@ export function parseStoredGrades(value) {
   try {
     const grades = JSON.parse(value);
     return grades && typeof grades === 'object' && !Array.isArray(grades) ? grades : {};
-  } catch (e) {
+  } catch {
     return {};
   }
 }

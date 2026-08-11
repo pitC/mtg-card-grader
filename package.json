@@ -1,0 +1,24 @@
+{
+  "name": "mtg-card-grader",
+  "version": "1.0.0",
+  "description": "A static browser app for grading cards from a Scryfall set. Grades can stay in the current browser or sync through Cloud Firestore.",
+  "private": true,
+  "scripts": {
+    "lint": "eslint js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pitC/mtg-card-grader.git"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/pitC/mtg-card-grader/issues"
+  },
+  "homepage": "https://github.com/pitC/mtg-card-grader#readme",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0"
+  }
+}
