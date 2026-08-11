@@ -514,6 +514,26 @@
 
   .reset-btn:hover { color: var(--ink); border-color: var(--brass); }
 
+  .search-input {
+    min-width: 180px;
+    background: var(--panel);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+
+  .search-input::placeholder {
+    color: var(--muted-dim);
+  }
+
+  .search-input:focus {
+    outline: 2px solid var(--brass-bright);
+    outline-offset: 2px;
+  }
+
   .lane { margin-bottom: 22px; }
 
   .lane-head {
@@ -730,7 +750,7 @@
     grades: {},
     collectionKey: null,
     cloudSync: false,
-    analysisFilters: { grades: [], colors: [], rarities: [] },
+    analysisFilters: { grades: [], colors: [], rarities: [], query: '' },
   };
 
   const el = {
@@ -757,6 +777,7 @@
     analysisView: document.getElementById('analysis-view'),
     analysisFilters: document.getElementById('analysis-filters'),
     analysisLanes: document.getElementById('analysis-lanes'),
+    analysisSearch: document.getElementById('analysis-search'),
     hoverCard: document.getElementById('hover-card'),
     hoverCardImg: document.getElementById('hover-card-img'),
   };
@@ -1115,10 +1136,39 @@
 
     if (f.rarities.length && !f.rarities.includes(card.rarity)) return false;
 
+    if (f.query) {
+      const q = f.query.toLowerCase();
+      const nameHit = (card.name || '').toLowerCase().includes(q);
+      const typeHit = (card.type_line || '').toLowerCase().includes(q);
+      if (!nameHit && !typeHit) return false;
+    }
+
     return true;
   }
 
   function buildAnalysisFilterBar() {
+    const searchGroup = document.createElement('div');
+    searchGroup.className = 'filter-group';
+
+    const searchLabel = document.createElement('span');
+    searchLabel.className = 'filter-label';
+    searchLabel.textContent = 'Search';
+    searchGroup.appendChild(searchLabel);
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'search-input';
+    searchInput.id = 'analysis-search';
+    searchInput.placeholder = 'Card name or type…';
+    searchInput.autocomplete = 'off';
+    searchInput.spellcheck = false;
+    searchInput.addEventListener('input', () => {
+      state.analysisFilters.query = searchInput.value.trim();
+      renderAnalysisView();
+    });
+    searchGroup.appendChild(searchInput);
+    el.analysisFilters.appendChild(searchGroup);
+
     const groups = [
       {
         key: 'grades',
@@ -1310,7 +1360,8 @@
       return;
     }
     if (e.target.closest('.reset-btn')) {
-      state.analysisFilters = { grades: [], colors: [], rarities: [] };
+      state.analysisFilters = { grades: [], colors: [], rarities: [], query: '' };
+      if (el.analysisSearch) el.analysisSearch.value = '';
       syncAnalysisChips();
       renderAnalysisView();
     }
