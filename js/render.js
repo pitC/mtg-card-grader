@@ -1,8 +1,15 @@
 import { cardImageUrl } from './scryfall.js';
 import { GRADES, ANALYSIS_COLOR_VALUES, ANALYSIS_RARITY_VALUES } from './constants.js';
 
+export function gridFiltersActive(state) {
+  const f = state.gridFilters;
+  return !!(f && (f.grades.length || f.colors.length || f.rarities.length || f.query));
+}
+
 export function applyFilter(state) {
-  state.filtered = state.cards;
+  state.filtered = gridFiltersActive(state)
+    ? state.cards.filter(card => gridMatches(state, card))
+    : state.cards;
   if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
 }
 
@@ -57,7 +64,11 @@ function cardGrade(state, card) {
 function gridMatches(state, card) {
   const f = state.gridFilters;
 
-  if (f.grades.length && !f.grades.includes(cardGrade(state, card))) return false;
+  if (f.grades.length) {
+    const grade = cardGrade(state, card);
+    const matchesGrade = grade ? f.grades.includes(grade) : f.grades.includes('ungraded');
+    if (!matchesGrade) return false;
+  }
 
   if (f.colors.length) {
     const colors = card.colors || [];
@@ -80,6 +91,27 @@ function gridMatches(state, card) {
 }
 
 export function buildGridFilterBar(state, el) {
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'grid-filter-toggle';
+  const caret = document.createElement('span');
+  caret.className = 'grid-filter-caret';
+  caret.textContent = '▾';
+  const toggleLabel = document.createElement('span');
+  toggleLabel.textContent = 'Filters';
+  toggle.appendChild(caret);
+  toggle.appendChild(toggleLabel);
+  toggle.addEventListener('click', () => {
+    state.gridFiltersCollapsed = !(state.gridFiltersCollapsed ?? true);
+    applyGridFilterCollapse(state, el);
+  });
+
+  const body = document.createElement('div');
+  body.className = 'grid-filters-body';
+
+  el.gridFilters.appendChild(toggle);
+  el.gridFilters.appendChild(body);
+
   const searchGroup = document.createElement('div');
   searchGroup.className = 'filter-group';
 
@@ -101,7 +133,7 @@ export function buildGridFilterBar(state, el) {
   });
   searchGroup.appendChild(searchInput);
   el.gridSearch = searchInput;
-  el.gridFilters.appendChild(searchGroup);
+  body.appendChild(searchGroup);
 
   const groups = [
     {
@@ -138,14 +170,26 @@ export function buildGridFilterBar(state, el) {
       chips.appendChild(btn);
     });
     groupEl.appendChild(chips);
-    el.gridFilters.appendChild(groupEl);
+    body.appendChild(groupEl);
   });
 
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'reset-btn';
   reset.textContent = 'Reset filters';
-  el.gridFilters.appendChild(reset);
+  body.appendChild(reset);
+
+  if (mobileQuery) {
+    mobileQuery.addEventListener('change', e => {
+      if (!e.matches) state.gridFiltersCollapsed = false;
+      applyGridFilterCollapse(state, el);
+    });
+  }
+  applyGridFilterCollapse(state, el);
+}
+
+function applyGridFilterCollapse(state, el) {
+  el.gridFilters.classList.toggle('collapsed', state.gridFiltersCollapsed !== false);
 }
 
 export function syncGridChips(state, el) {
@@ -217,8 +261,7 @@ export function renderGridView(state, el) {
         img.loading = 'lazy';
         btn.appendChild(img);
         btn.addEventListener('click', () => {
-          state.index = state.cards.indexOf(card);
-          setTab('grade', state, el);
+          setTab('grade', state, el, { index: filtered.indexOf(card) });
         });
         track.appendChild(btn);
       });
@@ -235,7 +278,11 @@ export function render(state, el) {
   else renderGridView(state, el);
 }
 
-export function setTab(tab, state, el) {
+export function setTab(tab, state, el, opts = {}) {
+  if (tab === 'grade' && state.tab !== 'grade' && gridFiltersActive(state) && opts.index === undefined) {
+    state.index = 0;
+  }
+  if (opts.index !== undefined) state.index = opts.index;
   state.tab = tab;
   [...el.tabGroup.children].forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
@@ -258,6 +305,10 @@ export function resetGridFilters(state, el) {
   syncGridChips(state, el);
   renderGridView(state, el);
 }
+
+const mobileQuery = typeof window !== 'undefined' && window.matchMedia
+  ? window.matchMedia('(max-width: 640px)')
+  : null;
 
 const hoverSupported = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover)').matches;
 

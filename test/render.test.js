@@ -4,7 +4,10 @@ import {
   applyFilter,
   updateProgress,
   render,
+  renderGridView,
   setTab,
+  gridFiltersActive,
+  buildGridFilterBar,
   toggleGridChip,
   resetGridFilters,
   syncGridChips,
@@ -80,16 +83,50 @@ function makeState(overrides = {}) {
 }
 
 describe('applyFilter', () => {
-  it('keeps all cards', () => {
+  it('keeps all cards when no grid filters are active', () => {
     const state = makeState({ grades: { a: { grade: 'A' } } });
     applyFilter(state);
     expect(state.filtered).toHaveLength(3);
+  });
+
+  it('keeps only cards matching the grid filters', () => {
+    const state = makeState({
+      grades: { a: { grade: 'A' }, c: { grade: 'C' } },
+      gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
+    });
+    applyFilter(state);
+    expect(state.filtered.map(c => c.id)).toEqual(['a']);
+  });
+
+  it('keeps only ungraded cards when the ungraded chip is active', () => {
+    const state = makeState({
+      grades: { a: { grade: 'A' } },
+      gridFilters: { grades: ['ungraded'], colors: [], rarities: [], query: '' },
+    });
+    applyFilter(state);
+    expect(state.filtered.map(c => c.id)).toEqual(['b', 'c']);
   });
 
   it('clamps index into the filtered range', () => {
     const state = makeState({ index: 5 });
     applyFilter(state);
     expect(state.index).toBe(2);
+  });
+});
+
+describe('gridFiltersActive', () => {
+  it('is false when every filter is empty', () => {
+    expect(gridFiltersActive(makeState())).toBe(false);
+  });
+
+  it('is true when a grade chip is active', () => {
+    const state = makeState({ gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' } });
+    expect(gridFiltersActive(state)).toBe(true);
+  });
+
+  it('is true when a search query is present', () => {
+    const state = makeState({ gridFilters: { grades: [], colors: [], rarities: [], query: 'lurrus' } });
+    expect(gridFiltersActive(state)).toBe(true);
   });
 });
 
@@ -128,6 +165,83 @@ describe('setTab', () => {
     expect(el.gridView.style.display).toBe('block');
     expect(el.gradeView.style.display).toBe('none');
     expect([...el.tabGroup.children].find(b => b.dataset.tab === 'grid').classList.contains('active')).toBe(true);
+  });
+
+  it('resets to the start of the filtered list when entering grade with filters active', () => {
+    const el = makeEl();
+    const state = makeState({
+      index: 2,
+      tab: 'grid',
+      gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
+    });
+    setTab('grade', state, el);
+    expect(state.tab).toBe('grade');
+    expect(state.index).toBe(0);
+  });
+
+  it('preserves the index when entering grade without filters', () => {
+    const el = makeEl();
+    const state = makeState({ index: 1, tab: 'grid' });
+    setTab('grade', state, el);
+    expect(state.index).toBe(1);
+  });
+
+  it('honours an explicit index when entering grade with filters active', () => {
+    const el = makeEl();
+    const state = makeState({
+      index: 2,
+      tab: 'grid',
+      gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
+    });
+    setTab('grade', state, el, { index: 0 });
+    expect(state.index).toBe(0);
+  });
+});
+
+describe('renderGridView', () => {
+  it('opens the clicked card at its filtered position in grade mode', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { a: { grade: 'A' }, c: { grade: 'C' } },
+      gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
+    });
+    renderGridView(state, el);
+    const cardBtn = el.gridLanes.querySelector('.lane-card[title="Card A"]');
+    cardBtn.click();
+    expect(state.tab).toBe('grade');
+    expect(state.index).toBe(0);
+    expect(el.cardName.textContent).toBe('Card A');
+  });
+
+  it('opens the clicked card even when filters exclude other cards', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { a: { grade: 'A' }, c: { grade: 'C' } },
+      gridFilters: { grades: ['C'], colors: [], rarities: [], query: '' },
+    });
+    renderGridView(state, el);
+    const cardBtn = el.gridLanes.querySelector('.lane-card[title="Card C"]');
+    cardBtn.click();
+    expect(state.tab).toBe('grade');
+    expect(state.index).toBe(0);
+    expect(el.cardName.textContent).toBe('Card C');
+  });
+});
+
+describe('buildGridFilterBar', () => {
+  it('builds a toggle that collapses the filter body', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const toggle = el.gridFilters.querySelector('.grid-filter-toggle');
+    expect(toggle).toBeTruthy();
+    expect(el.gridFilters.classList.contains('collapsed')).toBe(true);
+    toggle.click();
+    expect(el.gridFilters.classList.contains('collapsed')).toBe(false);
+    toggle.click();
+    expect(el.gridFilters.classList.contains('collapsed')).toBe(true);
   });
 });
 
