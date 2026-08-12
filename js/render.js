@@ -2,9 +2,7 @@ import { cardImageUrl } from './scryfall.js';
 import { GRADES, ANALYSIS_COLOR_VALUES, ANALYSIS_RARITY_VALUES } from './constants.js';
 
 export function applyFilter(state) {
-  state.filtered = state.filter === 'ungraded'
-    ? state.cards.filter(c => !state.grades[c.id])
-    : state.cards;
+  state.filtered = state.cards;
   if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
 }
 
@@ -21,9 +19,7 @@ export function renderGradeView(state, el) {
   if (!state.filtered.length) {
     el.gradeContent.style.display = 'none';
     el.gradeEmpty.style.display = 'block';
-    el.gradeEmpty.textContent = state.filter === 'ungraded'
-      ? 'Every card in this set has a grade. Switch to "All" to review them.'
-      : 'No cards to show.';
+    el.gradeEmpty.textContent = 'No cards to show.';
     return;
   }
 
@@ -54,49 +50,12 @@ export function renderGradeView(state, el) {
   el.nextBtn.disabled = state.index === state.filtered.length - 1;
 }
 
-export function renderGridView(state, el) {
-  hideHoverCard(el);
-  el.gridView.innerHTML = '';
-  if (!state.filtered.length) {
-    const note = document.createElement('div');
-    note.className = 'empty-note';
-    note.style.gridColumn = '1 / -1';
-    note.textContent = state.filter === 'ungraded'
-      ? 'Every card in this set has a grade.'
-      : 'No cards to show.';
-    el.gridView.appendChild(note);
-    return;
-  }
-  state.filtered.forEach((card, i) => {
-    const item = document.createElement('button');
-    item.className = 'grid-item';
-    item._card = card;
-    const img = document.createElement('img');
-    img.src = cardImageUrl(card);
-    img.alt = card.name;
-    img.loading = 'lazy';
-    item.appendChild(img);
-    const grade = state.grades[card.id];
-    if (grade) {
-      const mini = document.createElement('div');
-      mini.className = 'mini-seal';
-      mini.textContent = grade.grade;
-      item.appendChild(mini);
-    }
-    item.addEventListener('click', () => {
-      state.index = i;
-      setTab('grade', state, el);
-    });
-    el.gridView.appendChild(item);
-  });
-}
-
 function cardGrade(state, card) {
   return state.grades[card.id] ? state.grades[card.id].grade : null;
 }
 
-function analysisMatches(state, card) {
-  const f = state.analysisFilters;
+function gridMatches(state, card) {
+  const f = state.gridFilters;
 
   if (f.grades.length && !f.grades.includes(cardGrade(state, card))) return false;
 
@@ -120,7 +79,7 @@ function analysisMatches(state, card) {
   return true;
 }
 
-export function buildAnalysisFilterBar(state, el) {
+export function buildGridFilterBar(state, el) {
   const searchGroup = document.createElement('div');
   searchGroup.className = 'filter-group';
 
@@ -132,17 +91,17 @@ export function buildAnalysisFilterBar(state, el) {
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
   searchInput.className = 'search-input';
-  searchInput.id = 'analysis-search';
+  searchInput.id = 'grid-search';
   searchInput.placeholder = 'Card name or type…';
   searchInput.autocomplete = 'off';
   searchInput.spellcheck = false;
   searchInput.addEventListener('input', () => {
-    state.analysisFilters.query = searchInput.value.trim();
-    renderAnalysisView(state, el);
+    state.gridFilters.query = searchInput.value.trim();
+    renderGridView(state, el);
   });
   searchGroup.appendChild(searchInput);
-  el.analysisSearch = searchInput;
-  el.analysisFilters.appendChild(searchGroup);
+  el.gridSearch = searchInput;
+  el.gridFilters.appendChild(searchGroup);
 
   const groups = [
     {
@@ -179,49 +138,67 @@ export function buildAnalysisFilterBar(state, el) {
       chips.appendChild(btn);
     });
     groupEl.appendChild(chips);
-    el.analysisFilters.appendChild(groupEl);
+    el.gridFilters.appendChild(groupEl);
   });
 
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'reset-btn';
   reset.textContent = 'Reset filters';
-  el.analysisFilters.appendChild(reset);
+  el.gridFilters.appendChild(reset);
 }
 
-export function syncAnalysisChips(state, el) {
-  [...el.analysisFilters.querySelectorAll('button.chip')].forEach(btn => {
-    btn.classList.toggle('active', state.analysisFilters[btn.dataset.group].includes(btn.dataset.value));
+export function syncGridChips(state, el) {
+  [...el.gridFilters.querySelectorAll('button.chip')].forEach(btn => {
+    btn.classList.toggle('active', state.gridFilters[btn.dataset.group].includes(btn.dataset.value));
   });
 }
 
-export function renderAnalysisView(state, el) {
+export function renderGridView(state, el) {
   hideHoverCard(el);
-  const filtered = state.cards.filter(card => analysisMatches(state, card));
+  const filtered = state.cards.filter(card => gridMatches(state, card));
   const lanes = [
     ...GRADES.map(g => ({ label: g, cards: filtered.filter(c => cardGrade(state, c) === g) })),
     { label: 'Ungraded', cards: filtered.filter(c => !cardGrade(state, c)) },
   ];
 
-  el.analysisLanes.innerHTML = '';
+  el.gridLanes.innerHTML = '';
   lanes.forEach(lane => {
     const laneEl = document.createElement('div');
     laneEl.className = 'lane';
 
-    const head = document.createElement('div');
+    const collapsed = state.collapsedLanes && state.collapsedLanes.has(lane.label);
+
+    const head = document.createElement('button');
+    head.type = 'button';
     head.className = 'lane-head';
+    head.setAttribute('aria-expanded', String(!collapsed));
+
+    const caret = document.createElement('span');
+    caret.className = 'lane-caret' + (collapsed ? ' collapsed' : '');
+    caret.textContent = '▾';
+
     const grade = document.createElement('span');
     grade.className = 'lane-grade' + (lane.label === 'Ungraded' ? ' muted' : '');
     grade.textContent = lane.label;
+
     const count = document.createElement('span');
     count.className = 'lane-count';
     count.textContent = `${lane.cards.length} ${lane.cards.length === 1 ? 'card' : 'cards'}`;
+
+    head.appendChild(caret);
     head.appendChild(grade);
     head.appendChild(count);
+    head.addEventListener('click', () => {
+      if (!state.collapsedLanes) state.collapsedLanes = new Set();
+      if (state.collapsedLanes.has(lane.label)) state.collapsedLanes.delete(lane.label);
+      else state.collapsedLanes.add(lane.label);
+      renderGridView(state, el);
+    });
     laneEl.appendChild(head);
 
     const track = document.createElement('div');
-    track.className = 'lane-track';
+    track.className = 'lane-track' + (collapsed ? ' collapsed' : '');
     if (!lane.cards.length) {
       const empty = document.createElement('div');
       empty.className = 'lane-empty';
@@ -240,7 +217,6 @@ export function renderAnalysisView(state, el) {
         img.loading = 'lazy';
         btn.appendChild(img);
         btn.addEventListener('click', () => {
-          state.filter = 'all';
           state.index = state.cards.indexOf(card);
           setTab('grade', state, el);
         });
@@ -248,7 +224,7 @@ export function renderAnalysisView(state, el) {
       });
     }
     laneEl.appendChild(track);
-    el.analysisLanes.appendChild(laneEl);
+    el.gridLanes.appendChild(laneEl);
   });
 }
 
@@ -256,40 +232,31 @@ export function render(state, el) {
   applyFilter(state);
   updateProgress(state, el);
   if (state.tab === 'grade') renderGradeView(state, el);
-  else if (state.tab === 'grid') renderGridView(state, el);
-  else renderAnalysisView(state, el);
+  else renderGridView(state, el);
 }
 
 export function setTab(tab, state, el) {
   state.tab = tab;
   [...el.tabGroup.children].forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
-  el.gridView.style.display = tab === 'grid' ? 'grid' : 'none';
-  el.analysisView.style.display = tab === 'analysis' ? 'block' : 'none';
+  el.gridView.style.display = tab === 'grid' ? 'block' : 'none';
   render(state, el);
 }
 
-export function setFilter(filter, state, el) {
-  state.filter = filter;
-  state.index = 0;
-  [...el.filterGroup.children].forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
-  render(state, el);
-}
-
-export function toggleAnalysisChip(state, el, chip) {
-  const arr = state.analysisFilters[chip.dataset.group];
+export function toggleGridChip(state, el, chip) {
+  const arr = state.gridFilters[chip.dataset.group];
   const idx = arr.indexOf(chip.dataset.value);
   if (idx >= 0) arr.splice(idx, 1);
   else arr.push(chip.dataset.value);
-  syncAnalysisChips(state, el);
-  renderAnalysisView(state, el);
+  syncGridChips(state, el);
+  renderGridView(state, el);
 }
 
-export function resetAnalysisFilters(state, el) {
-  state.analysisFilters = { grades: [], colors: [], rarities: [], query: '' };
-  if (el.analysisSearch) el.analysisSearch.value = '';
-  syncAnalysisChips(state, el);
-  renderAnalysisView(state, el);
+export function resetGridFilters(state, el) {
+  state.gridFilters = { grades: [], colors: [], rarities: [], query: '' };
+  if (el.gridSearch) el.gridSearch.value = '';
+  syncGridChips(state, el);
+  renderGridView(state, el);
 }
 
 const hoverSupported = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover)').matches;
@@ -321,7 +288,7 @@ export function setupHoverEvents(state, el) {
   if (!hoverSupported) return;
 
   document.addEventListener('mouseover', e => {
-    const item = e.target.closest('.lane-card, .grid-item');
+    const item = e.target.closest('.lane-card');
     if (!item || !item._card) return;
     showHoverCard(state, el, item._card, e.clientX, e.clientY);
   });
@@ -329,9 +296,9 @@ export function setupHoverEvents(state, el) {
     if (el.hoverCard.style.display === 'block') positionHoverCard(el, e.clientX, e.clientY);
   });
   document.addEventListener('mouseout', e => {
-    const item = e.target.closest('.lane-card, .grid-item');
+    const item = e.target.closest('.lane-card');
     if (!item) return;
-    if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.lane-card, .grid-item')) return;
+    if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.lane-card')) return;
     hideHoverCard(el);
   });
 }

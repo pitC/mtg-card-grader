@@ -5,10 +5,9 @@ import { GRADES } from './constants.js';
 import {
   render,
   setTab,
-  setFilter,
-  buildAnalysisFilterBar,
-  toggleAnalysisChip,
-  resetAnalysisFilters,
+  buildGridFilterBar,
+  toggleGridChip,
+  resetGridFilters,
   setupHoverEvents,
   findNextUngradedIndex,
 } from './render.js';
@@ -18,12 +17,12 @@ const state = {
   cards: [],
   filtered: [],
   index: 0,
-  filter: 'all',
   tab: 'grade',
   grades: {},
   collectionKey: null,
   cloudSync: false,
-  analysisFilters: { grades: [], colors: [], rarities: [], query: '' },
+  gridFilters: { grades: [], colors: [], rarities: [], query: '' },
+  collapsedLanes: new Set(),
 };
 
 const el = {
@@ -45,12 +44,10 @@ const el = {
   nextBtn: document.getElementById('next-btn'),
   clearBtn: document.getElementById('clear-btn'),
   tabGroup: document.getElementById('tab-group'),
-  filterGroup: document.getElementById('filter-group'),
   syncStatus: document.getElementById('sync-status'),
-  analysisView: document.getElementById('analysis-view'),
-  analysisFilters: document.getElementById('analysis-filters'),
-  analysisLanes: document.getElementById('analysis-lanes'),
-  analysisSearch: document.getElementById('analysis-search'),
+  gridFilters: document.getElementById('grid-filters'),
+  gridLanes: document.getElementById('grid-lanes'),
+  gridSearch: document.getElementById('grid-search'),
   hoverCard: document.getElementById('hover-card'),
   hoverCardImg: document.getElementById('hover-card-img'),
 };
@@ -110,11 +107,6 @@ el.tabGroup.addEventListener('click', e => {
   if (btn) setTab(btn.dataset.tab, state, el);
 });
 
-el.filterGroup.addEventListener('click', e => {
-  const btn = e.target.closest('button[data-filter]');
-  if (btn) setFilter(btn.dataset.filter, state, el);
-});
-
 el.gradeRow.addEventListener('click', e => {
   const btn = e.target.closest('button[data-grade]');
   if (btn) gradeCurrentCard(btn.dataset.grade);
@@ -124,14 +116,14 @@ el.prevBtn.addEventListener('click', () => move(-1));
 el.nextBtn.addEventListener('click', () => move(1));
 el.clearBtn.addEventListener('click', clearCurrentCard);
 
-el.analysisFilters.addEventListener('click', e => {
+el.gridFilters.addEventListener('click', e => {
   const chip = e.target.closest('button.chip');
   if (chip) {
-    toggleAnalysisChip(state, el, chip);
+    toggleGridChip(state, el, chip);
     return;
   }
   if (e.target.closest('.reset-btn')) {
-    resetAnalysisFilters(state, el);
+    resetGridFilters(state, el);
   }
 });
 
@@ -172,7 +164,7 @@ async function init() {
     if (!cards.length) throw new Error('No cards with images found in this set');
     state.cards = cards;
 
-    buildAnalysisFilterBar(state, el);
+    buildGridFilterBar(state, el);
 
     const localGrades = loadLocalCache(state.setCode, state.cards);
     const result = await fetchAllGrades({

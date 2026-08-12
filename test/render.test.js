@@ -5,10 +5,9 @@ import {
   updateProgress,
   render,
   setTab,
-  setFilter,
-  toggleAnalysisChip,
-  resetAnalysisFilters,
-  syncAnalysisChips,
+  toggleGridChip,
+  resetGridFilters,
+  syncGridChips,
   findNextUngradedIndex,
 } from '../js/render.js';
 
@@ -27,10 +26,9 @@ function makeEl() {
     gradeContent: document.createElement('div'),
     gradeEmpty: document.createElement('div'),
     gridView: document.createElement('div'),
-    analysisView: document.createElement('div'),
-    analysisFilters: document.createElement('div'),
-    analysisLanes: document.createElement('div'),
-    analysisSearch: document.createElement('input'),
+    gridFilters: document.createElement('div'),
+    gridLanes: document.createElement('div'),
+    gridSearch: document.createElement('input'),
     hoverCard: document.createElement('div'),
     hoverCardImg: document.createElement('img'),
     cardImage: document.createElement('img'),
@@ -41,7 +39,6 @@ function makeEl() {
     prevBtn: document.createElement('button'),
     nextBtn: document.createElement('button'),
     tabGroup: document.createElement('div'),
-    filterGroup: document.createElement('div'),
   };
   for (const g of ['A', 'B', 'C']) {
     const btn = document.createElement('button');
@@ -52,22 +49,17 @@ function makeEl() {
   el.gradeEmpty.style.display = 'none';
   el.hoverCard.style.display = 'none';
 
-  const tabIds = ['grade', 'grid', 'analysis'];
+  const tabIds = ['grade', 'grid'];
   for (const t of tabIds) {
     const b = document.createElement('button');
     b.dataset.tab = t;
     el.tabGroup.appendChild(b);
   }
-  for (const f of ['all', 'ungraded']) {
-    const b = document.createElement('button');
-    b.dataset.filter = f;
-    el.filterGroup.appendChild(b);
-  }
-  el.analysisFilters.appendChild(makeChip('grades', 'A'));
-  el.analysisFilters.appendChild(makeChip('grades', 'ungraded'));
-  el.analysisFilters.appendChild(makeChip('colors', 'W'));
-  el.analysisFilters.appendChild(makeChip('rarities', 'rare'));
-  el.analysisSearch.id = 'analysis-search';
+  el.gridFilters.appendChild(makeChip('grades', 'A'));
+  el.gridFilters.appendChild(makeChip('grades', 'ungraded'));
+  el.gridFilters.appendChild(makeChip('colors', 'W'));
+  el.gridFilters.appendChild(makeChip('rarities', 'rare'));
+  el.gridSearch.id = 'grid-search';
   return el;
 }
 
@@ -80,32 +72,24 @@ function makeState(overrides = {}) {
     ],
     filtered: [],
     index: 0,
-    filter: 'all',
     tab: 'grade',
     grades: {},
-    analysisFilters: { grades: [], colors: [], rarities: [], query: '' },
+    gridFilters: { grades: [], colors: [], rarities: [], query: '' },
     ...overrides,
   };
 }
 
 describe('applyFilter', () => {
-  it('keeps all cards when filter is all', () => {
+  it('keeps all cards', () => {
     const state = makeState({ grades: { a: { grade: 'A' } } });
-    state.filtered = [...state.cards];
     applyFilter(state);
     expect(state.filtered).toHaveLength(3);
   });
 
-  it('keeps only ungraded cards when filter is ungraded', () => {
-    const state = makeState({ filter: 'ungraded', grades: { a: { grade: 'A' } } });
-    applyFilter(state);
-    expect(state.filtered.map(c => c.id)).toEqual(['b', 'c']);
-  });
-
   it('clamps index into the filtered range', () => {
-    const state = makeState({ filter: 'ungraded', grades: { a: { grade: 'A' } }, index: 5 });
+    const state = makeState({ index: 5 });
     applyFilter(state);
-    expect(state.index).toBe(1);
+    expect(state.index).toBe(2);
   });
 });
 
@@ -141,76 +125,65 @@ describe('setTab', () => {
     const state = makeState();
     setTab('grid', state, el);
     expect(state.tab).toBe('grid');
-    expect(el.gridView.style.display).toBe('grid');
+    expect(el.gridView.style.display).toBe('block');
     expect(el.gradeView.style.display).toBe('none');
     expect([...el.tabGroup.children].find(b => b.dataset.tab === 'grid').classList.contains('active')).toBe(true);
   });
 });
 
-describe('setFilter', () => {
-  it('resets index and renders through the filter buttons', () => {
-    const el = makeEl();
-    const state = makeState({ index: 2 });
-    setFilter('ungraded', state, el);
-    expect(state.filter).toBe('ungraded');
-    expect(state.index).toBe(0);
-    expect([...el.filterGroup.children].find(b => b.dataset.filter === 'ungraded').classList.contains('active')).toBe(true);
-  });
-});
-
-describe('toggleAnalysisChip', () => {
+describe('toggleGridChip', () => {
   function gradeChipA(el) {
-    return el.analysisFilters.querySelector('button.chip[data-group="grades"][data-value="A"]');
+    return el.gridFilters.querySelector('button.chip[data-group="grades"][data-value="A"]');
   }
 
   it('adds a chip value and marks the button active', () => {
     const el = makeEl();
     const state = makeState();
     const chip = gradeChipA(el);
-    toggleAnalysisChip(state, el, chip);
-    expect(state.analysisFilters.grades).toEqual(['A']);
+    toggleGridChip(state, el, chip);
+    expect(state.gridFilters.grades).toEqual(['A']);
     expect(chip.classList.contains('active')).toBe(true);
   });
 
   it('removes a chip value on second toggle', () => {
     const el = makeEl();
-    const state = makeState({ analysisFilters: { grades: ['A'], colors: [], rarities: [], query: '' } });
+    const state = makeState({ gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' } });
     const chip = gradeChipA(el);
-    toggleAnalysisChip(state, el, chip);
-    expect(state.analysisFilters.grades).toEqual([]);
+    toggleGridChip(state, el, chip);
+    expect(state.gridFilters.grades).toEqual([]);
     expect(chip.classList.contains('active')).toBe(false);
   });
 });
 
-describe('syncAnalysisChips', () => {
+describe('syncGridChips', () => {
   it('synchronises the active class with the state', () => {
     const el = makeEl();
-    const state = makeState({ analysisFilters: { grades: ['A'], colors: ['W'], rarities: [], query: '' } });
-    syncAnalysisChips(state, el);
-    const chips = [...el.analysisFilters.querySelectorAll('button.chip')];
+    const state = makeState({ gridFilters: { grades: ['A'], colors: ['W'], rarities: [], query: '' } });
+    syncGridChips(state, el);
+    const chips = [...el.gridFilters.querySelectorAll('button.chip')];
     expect(chips.find(c => c.dataset.group === 'grades' && c.dataset.value === 'A').classList.contains('active')).toBe(true);
     expect(chips.find(c => c.dataset.group === 'colors' && c.dataset.value === 'W').classList.contains('active')).toBe(true);
     expect(chips.find(c => c.dataset.group === 'rarities').classList.contains('active')).toBe(false);
   });
 });
 
-describe('resetAnalysisFilters', () => {
+describe('resetGridFilters', () => {
   it('clears filters and the search input', () => {
     const el = makeEl();
-    el.analysisSearch.value = 'lurrus';
+    el.gridSearch.value = 'lurrus';
     const state = makeState({
-      analysisFilters: { grades: ['A'], colors: ['W'], rarities: ['rare'], query: 'lurrus' },
+      gridFilters: { grades: ['A'], colors: ['W'], rarities: ['rare'], query: 'lurrus' },
     });
-    resetAnalysisFilters(state, el);
-    expect(state.analysisFilters).toEqual({ grades: [], colors: [], rarities: [], query: '' });
-    expect(el.analysisSearch.value).toBe('');
+    resetGridFilters(state, el);
+    expect(state.gridFilters).toEqual({ grades: [], colors: [], rarities: [], query: '' });
+    expect(el.gridSearch.value).toBe('');
   });
 });
 
 describe('render', () => {
-  it('shows the empty message for an empty filtered grade view', () => {
+  it('shows the empty message for an empty card set', () => {
     const el = makeEl();
-    const state = makeState({ filter: 'ungraded', grades: { a: { grade: 'A' }, b: { grade: 'B' }, c: { grade: 'C' } } });
+    const state = makeState({ cards: [] });
     render(state, el);
     expect(el.gradeContent.style.display).toBe('none');
     expect(el.gradeEmpty.style.display).toBe('block');

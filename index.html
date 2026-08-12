@@ -22,11 +22,6 @@
       <div class="tab-group" id="tab-group">
         <button data-tab="grade" class="active">Grade</button>
         <button data-tab="grid">Grid</button>
-        <button data-tab="analysis">Analysis</button>
-      </div>
-      <div class="pill-group" id="filter-group">
-        <button data-filter="all" class="active">All</button>
-        <button data-filter="ungraded">Ungraded</button>
       </div>
       <div class="progress" id="progress"></div>
       <div class="progress" id="sync-status">—</div>
@@ -67,11 +62,9 @@
     </div>
   </div>
 
-  <div id="grid-view" class="grid-view" style="display:none;"></div>
-
-  <div id="analysis-view" style="display:none;">
-    <div id="analysis-filters" class="analysis-filters"></div>
-    <div id="analysis-lanes"></div>
+  <div id="grid-view" style="display:none;">
+    <div id="grid-filters" class="grid-filters"></div>
+    <div id="grid-lanes"></div>
   </div>
 
   <div id="hover-card" class="hover-card" style="display:none;">
