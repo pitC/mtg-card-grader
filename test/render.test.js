@@ -419,12 +419,12 @@ describe('comparison rendering', () => {
     expect(el.compareSummary.textContent).toContain('1 no 17Lands grade');
   });
 
-  it('renders All/Match/Overrated/Underrated filter chips', () => {
+  it('renders All/Match/Overrated/Underrated/Strong filter chips', () => {
     const el = makeEl();
     const state = makeState({ actualGrades: makeActualGrades(), compareActive: true });
     renderCompareSummary(state, el);
     const chips = [...el.compareSummary.querySelectorAll('.cmp-filter-chip')].map(c => c.dataset.cmp);
-    expect(chips).toEqual(['all', 'match', 'over', 'under']);
+    expect(chips).toEqual(['all', 'match', 'over', 'under', 'strong-over', 'strong-under']);
     expect(el.compareSummary.querySelector('.cmp-filter-chip[data-cmp="all"]').classList.contains('active')).toBe(true);
   });
 
@@ -487,6 +487,45 @@ describe('comparison rendering', () => {
     state = makeState({ ...base, compareFilter: null });
     renderGridView(state, el);
     expect([...el.gridLanes.querySelectorAll('.lane-card')]).toHaveLength(3);
+  });
+
+  it('filters lanes into strong over/under when grades differ by 2 or more', () => {
+    const el = makeEl();
+    const actualGrades = {
+      byName: {
+        'Card A': { all: { grade: 'A', winrate: 0.6, gameCount: 800, score: 96 } },
+        'Card B': { all: { grade: 'C', winrate: 0.5, gameCount: 800, score: 50 } },
+        'Card C': { all: { grade: 'D-', winrate: 0.45, gameCount: 800, score: 18 } },
+        'Card D': { all: { grade: 'B', winrate: 0.55, gameCount: 800, score: 70 } },
+      },
+    };
+    const base = {
+      cards: [
+        { id: 'a', name: 'Card A', rarity: 'rare', type_line: 'Creature', image_uris: { normal: 'a.jpg' } },
+        { id: 'b', name: 'Card B', rarity: 'common', type_line: 'Land', image_uris: { normal: 'b.jpg' } },
+        { id: 'c', name: 'Card C', rarity: 'rare', type_line: 'Instant', image_uris: { normal: 'c.jpg' } },
+        { id: 'd', name: 'Card D', rarity: 'common', type_line: 'Sorcery', image_uris: { normal: 'd.jpg' } },
+      ],
+      grades: { a: { grade: 'A' }, b: { grade: 'A' }, c: { grade: 'E' }, d: { grade: 'E' } },
+      actualGrades,
+      compareActive: true,
+    };
+
+    let state = makeState({ ...base, compareFilter: 'strong-over' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card B']);
+
+    state = makeState({ ...base, compareFilter: 'strong-under' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card D']);
+
+    state = makeState({ ...base, compareFilter: 'over' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card B']);
+
+    state = makeState({ ...base, compareFilter: 'under' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card C', 'Card D']);
   });
 
   it('treats gridFiltersActive as on when a comparison filter is set', () => {

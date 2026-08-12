@@ -52,8 +52,10 @@ badge with its actual grade; cards where your grade is higher than the data
 are marked **overrated** (↑), lower than the data **underrated** (↓), and
 matching cards are left neutral. A summary row below the button counts
 matches, over- and underrated cards, and cards with no 17Lands grade, with
-**All / Match / Overrated / Underrated** chips to filter the grid by that
-comparison. The result is cached in `localStorage` for 24 hours per set.
+**All / Match / Overrated / Underrated / Strong over / Strong under** chips
+to filter the grid by that comparison. Strong over/under select cards that
+differ by two or more grade positions (e.g. your A vs actual C or D). The
+result is cached in `localStorage` for 24 hours per set.
 
 17Lands does not send CORS headers, so the app routes requests through a CORS
 proxy. The default is [corsproxy.io](https://corsproxy.io), which is free for

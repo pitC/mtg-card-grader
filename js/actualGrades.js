@@ -232,14 +232,22 @@ export function saveActualCache(setCode, result) {
   localStorage.setItem(cacheKey(setCode), JSON.stringify(result));
 }
 
+// Signed grade difference between the own A-E grade and the bucketed actual
+// grade (own index minus bucket index on the A..E ladder). Negative means the
+// own grade is higher (overrated), positive means lower (underrated). Returns
+// null when either side is missing.
+export function compareOwnVsActualDelta(ownGrade, actualGrade) {
+  const bucket = actualGrade == null ? null : ACTUAL_GRADE_BUCKETS[actualGrade];
+  if (!ownGrade || !bucket) return null;
+  return GRADES.indexOf(ownGrade) - GRADES.indexOf(bucket);
+}
+
 // Classify an own grade against the A-E bucket of the actual grade:
 // 'match', 'over' (own grade is better than the data), or 'under'. Returns
 // null when either side is missing.
 export function compareOwnVsActual(ownGrade, actualGrade) {
-  const bucket = actualGrade == null ? null : ACTUAL_GRADE_BUCKETS[actualGrade];
-  if (!ownGrade || !bucket) return null;
-  const ownIndex = GRADES.indexOf(ownGrade);
-  const bucketIndex = GRADES.indexOf(bucket);
-  if (ownIndex === bucketIndex) return 'match';
-  return ownIndex < bucketIndex ? 'over' : 'under';
+  const delta = compareOwnVsActualDelta(ownGrade, actualGrade);
+  if (delta == null) return null;
+  if (delta === 0) return 'match';
+  return delta < 0 ? 'over' : 'under';
 }

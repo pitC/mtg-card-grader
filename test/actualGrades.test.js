@@ -4,6 +4,7 @@ import {
   buildActualGrades,
   cardLookupName,
   compareOwnVsActual,
+  compareOwnVsActualDelta,
   computeGrades,
   DEFAULT_PROXY,
   getConfiguredProxy,
@@ -165,6 +166,31 @@ describe('compareOwnVsActual', () => {
   it('returns null when either side is missing', () => {
     expect(compareOwnVsActual(null, 'A')).toBeNull();
     expect(compareOwnVsActual('A', null)).toBeNull();
+  });
+});
+
+describe('compareOwnVsActualDelta', () => {
+  it('is zero for a match', () => {
+    expect(compareOwnVsActualDelta('B', 'B+')).toBe(0);
+    expect(compareOwnVsActualDelta('A', 'A+')).toBe(0);
+  });
+
+  it('is negative when the own grade is higher, scaled by grade positions', () => {
+    expect(compareOwnVsActualDelta('A', 'B')).toBe(-1);
+    expect(compareOwnVsActualDelta('A', 'C')).toBe(-2);
+    expect(compareOwnVsActualDelta('A', 'D')).toBe(-3);
+    expect(compareOwnVsActualDelta('A', 'F')).toBe(-4);
+  });
+
+  it('is positive when the own grade is lower, scaled by grade positions', () => {
+    expect(compareOwnVsActualDelta('B', 'A')).toBe(1);
+    expect(compareOwnVsActualDelta('D', 'B')).toBe(2);
+    expect(compareOwnVsActualDelta('E', 'C')).toBe(2);
+  });
+
+  it('returns null when either side is missing', () => {
+    expect(compareOwnVsActualDelta(null, 'A')).toBeNull();
+    expect(compareOwnVsActualDelta('A', null)).toBeNull();
   });
 });
 

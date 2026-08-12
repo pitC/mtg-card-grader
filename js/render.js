@@ -1,6 +1,6 @@
 import { cardImageUrl } from './scryfall.js';
 import { GRADES, ANALYSIS_COLOR_VALUES, ANALYSIS_RARITY_VALUES } from './constants.js';
-import { compareOwnVsActual, cardLookupName } from './actualGrades.js';
+import { compareOwnVsActual, compareOwnVsActualDelta, cardLookupName } from './actualGrades.js';
 
 export function gridFiltersActive(state) {
   const f = state.gridFilters;
@@ -78,6 +78,28 @@ function comparisonStatus(state, card) {
   return actual ? compareOwnVsActual(ownGrade, actual.grade) : null;
 }
 
+// Signed grade delta (own - actual bucket) or null when not comparable.
+function comparisonDelta(state, card) {
+  const ownGrade = cardGrade(state, card);
+  if (!ownGrade) return null;
+  const actual = actualGradeForCard(state, card);
+  return actual ? compareOwnVsActualDelta(ownGrade, actual.grade) : null;
+}
+
+// Whether a card satisfies the active comparison filter. 'strong-over' /
+// 'strong-under' are the >=2-grade-difference subsets of over/under.
+function comparisonMatchesFilter(state, card) {
+  const filter = state.compareFilter;
+  const delta = comparisonDelta(state, card);
+  if (delta == null) return false;
+  if (filter === 'match') return delta === 0;
+  if (filter === 'over') return delta < 0;
+  if (filter === 'under') return delta > 0;
+  if (filter === 'strong-over') return delta <= -2;
+  if (filter === 'strong-under') return delta >= 2;
+  return false;
+}
+
 export function renderCompareSummary(state, el) {
   if (!state.actualGrades || !state.compareActive) {
     el.compareSummary.style.display = 'none';
@@ -104,6 +126,8 @@ export function renderCompareSummary(state, el) {
     ['match', 'Match'],
     ['over', 'Overrated'],
     ['under', 'Underrated'],
+    ['strong-over', 'Strong over'],
+    ['strong-under', 'Strong under'],
   ].map(([value, label]) =>
     `<button type="button" class="cmp-filter-chip${value === activeFilter ? ' active' : ''}" data-cmp="${value}">${label}</button>`
   ).join('');
@@ -116,7 +140,7 @@ export function renderCompareSummary(state, el) {
     <span class="compare-chip"><i class="dot cmp-under-dot"></i>${under} underrated · yours lower</span>
     ${noData ? `<span class="compare-chip">${noData} no 17Lands grade</span>` : ''}
     <span class="compare-filter-group">${chips}</span>
-    <span class="compare-note">Actual grades come from 17Lands, relative within each colour pair (PremierDraft, all time). Over/under compare your A–E grade against the bucketed actual grade; lanes stay grouped by your grade.</span>
+    <span class="compare-note">Actual grades come from 17Lands, relative within each colour pair (PremierDraft, all time). Over/under compare your A–E grade against the bucketed actual grade; Strong filters keep cards 2+ grade positions apart. Lanes stay grouped by your grade.</span>
   `;
 }
 
@@ -124,7 +148,7 @@ function gridMatches(state, card) {
   const f = state.gridFilters;
 
   if (state.compareActive && state.compareFilter) {
-    if (comparisonStatus(state, card) !== state.compareFilter) return false;
+    if (!comparisonMatchesFilter(state, card)) return false;
   }
 
   if (f.grades.length) {
