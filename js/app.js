@@ -2,6 +2,7 @@ import { ensureSyncConfig, fetchAllGrades, persistGrades } from './firestore.js'
 import { loadLocalCache } from './storage.js';
 import { fetchSetByCode, findLatestSet, fetchSetCards, getSetCodeFromUrl } from './scryfall.js';
 import { GRADES } from './constants.js';
+import { buildActualGrades, loadActualCache, saveActualCache } from './actualGrades.js';
 import {
   render,
   setTab,
@@ -23,6 +24,10 @@ const state = {
   cloudSync: false,
   gridFilters: { grades: [], colors: [], rarities: [], query: '' },
   collapsedLanes: new Set(),
+  actualGrades: null,
+  compareActive: false,
+  compareLoading: false,
+  compareFilter: null,
 };
 
 const el = {
@@ -48,6 +53,9 @@ const el = {
   gridFilters: document.getElementById('grid-filters'),
   gridLanes: document.getElementById('grid-lanes'),
   gridSearch: document.getElementById('grid-search'),
+  compareBtn: document.getElementById('compare-btn'),
+  compareStatus: document.getElementById('compare-status'),
+  compareSummary: document.getElementById('compare-summary'),
   hoverCard: document.getElementById('hover-card'),
   hoverCardImg: document.getElementById('hover-card-img'),
 };
@@ -102,6 +110,46 @@ function move(delta) {
   }
 }
 
+function setCompareStatus(text, isError) {
+  el.compareStatus.textContent = text || '';
+  el.compareStatus.classList.toggle('error', !!isError);
+}
+
+async function toggleComparison() {
+  if (state.compareLoading) return;
+
+  if (state.compareActive) {
+    state.compareActive = false;
+    state.compareFilter = null;
+    el.compareBtn.classList.remove('active');
+    render(state, el);
+    return;
+  }
+
+  state.compareLoading = true;
+  el.compareBtn.disabled = true;
+  setCompareStatus('Fetching 17Lands data…');
+  try {
+    let result = state.actualGrades || loadActualCache(state.setCode);
+    if (!result) {
+      result = await buildActualGrades({ setCode: state.setCode });
+      saveActualCache(state.setCode, result);
+    }
+    if (!Object.keys(result.byName).length) throw new Error('No 17Lands data found for this set');
+    state.actualGrades = result;
+    state.compareActive = true;
+    el.compareBtn.classList.add('active');
+    setCompareStatus('');
+  } catch (err) {
+    console.error('[Card Grader] 17Lands comparison error', err);
+    setCompareStatus('Could not fetch 17Lands data. The default proxy is free for localhost/dev origins; on other hosts set ?proxy=<working proxy>.', true);
+  } finally {
+    state.compareLoading = false;
+    el.compareBtn.disabled = false;
+    render(state, el);
+  }
+}
+
 el.tabGroup.addEventListener('click', e => {
   const btn = e.target.closest('button[data-tab]');
   if (btn) setTab(btn.dataset.tab, state, el);
@@ -115,6 +163,14 @@ el.gradeRow.addEventListener('click', e => {
 el.prevBtn.addEventListener('click', () => move(-1));
 el.nextBtn.addEventListener('click', () => move(1));
 el.clearBtn.addEventListener('click', clearCurrentCard);
+el.compareBtn.addEventListener('click', toggleComparison);
+
+el.compareSummary.addEventListener('click', e => {
+  const chip = e.target.closest('button[data-cmp]');
+  if (!chip) return;
+  state.compareFilter = chip.dataset.cmp === 'all' ? null : chip.dataset.cmp;
+  render(state, el);
+});
 
 el.gridFilters.addEventListener('click', e => {
   const chip = e.target.closest('button.chip');

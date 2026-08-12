@@ -21,7 +21,10 @@ URL, and loads that set's cards.
 
 - **Grade** — one card at a time with an A–E grade button row. Shows a grade
   seal on the card and progress toward grading the whole set.
-- **Grid** — the full card list as thumbnails, each stamped with its grade.
+- **Grid** — the full card list as thumbnails grouped into grade lanes, with
+  filters and search. A **Compare vs 17Lands** button switches on a comparison
+  mode that stamps each card with its actual 17Lands grade and highlights
+  cards where your grade disagrees with the data.
 - **Analysis** — cards bucketed into grade lanes (A–E plus Ungraded), with
   filters for grade, colour, rarity, and a free-text search.
 
@@ -32,6 +35,32 @@ URL, and loads that set's cards.
 - **Clear grade** removes the grade for the current card.
 - Hovering cards in Grid or Analysis shows a large preview.
 - **All / Ungraded** pills filter which cards the Grade and Grid views show.
+
+## Comparing with real 17Lands grades
+
+In **Grid** mode, **Compare vs 17Lands** fetches draft data from
+[17Lands](https://www.17lands.com) and grades each card with the same
+relative-per-colour-pair mechanism used by the
+[limited-grades](https://github.com/youssefm/limited-grades) tier lists:
+each deck's `ever_drawn_win_rate` values are fitted to a normal distribution,
+mapped to a 0–100 percentile score, and converted to an **A+…F** grade through
+the thresholds in `card-grading-description.md`. Cards under 500 drawn games
+and under 100 inference games are handled exactly as described there.
+
+The comparison lanes stay grouped by your own A–E grade. Each card gets a
+badge with its actual grade; cards where your grade is higher than the data
+are marked **overrated** (↑), lower than the data **underrated** (↓), and
+matching cards are left neutral. A summary row below the button counts
+matches, over- and underrated cards, and cards with no 17Lands grade, with
+**All / Match / Overrated / Underrated** chips to filter the grid by that
+comparison. The result is cached in `localStorage` for 24 hours per set.
+
+17Lands does not send CORS headers, so the app routes requests through a CORS
+proxy. The default is [corsproxy.io](https://corsproxy.io), which is free for
+local development and dev origins (`localhost`, GitHub.io, CodePen, …); on
+other hosts pass your own proxy with `?proxy=https://proxy.example/` on the
+URL (use a `{url}` placeholder for proxies that need one). `?proxy=direct`
+skips the proxy for hosts that allow it.
 
 ## Storage
 
@@ -133,6 +162,7 @@ js/
   app.js          Bootstrap, state, and event wiring
   constants.js    Grades and analysis filter values
   scryfall.js     Scryfall API calls and helpers
+  actualGrades.js 17Lands fetch (CORS proxy), grading, and comparison logic
   render.js       Grade, Grid, and Analysis view rendering
   storage.js      localStorage cache and sync preferences
   firebase.js     Lazy Firebase web SDK loading

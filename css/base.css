@@ -12,6 +12,9 @@
   --brass-bright: #e2b968;
   --brass-dim: #8a6a2f;
   --crimson: #a8425a;
+  --cmp-match: #6f9f6f;
+  --cmp-over: #c98a3a;
+  --cmp-under: #5f9fd0;
   --line: rgba(255,255,255,0.08);
   --line-bright: rgba(255,255,255,0.16);
   --radius: 10px;

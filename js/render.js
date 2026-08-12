@@ -1,9 +1,11 @@
 import { cardImageUrl } from './scryfall.js';
 import { GRADES, ANALYSIS_COLOR_VALUES, ANALYSIS_RARITY_VALUES } from './constants.js';
+import { compareOwnVsActual, cardLookupName } from './actualGrades.js';
 
 export function gridFiltersActive(state) {
   const f = state.gridFilters;
-  return !!(f && (f.grades.length || f.colors.length || f.rarities.length || f.query));
+  if (f && (f.grades.length || f.colors.length || f.rarities.length || f.query)) return true;
+  return !!(state.compareActive && state.compareFilter);
 }
 
 export function applyFilter(state) {
@@ -61,8 +63,69 @@ function cardGrade(state, card) {
   return state.grades[card.id] ? state.grades[card.id].grade : null;
 }
 
+// Actual "all decks" grade entry for a card, or null when not available.
+function actualGradeForCard(state, card) {
+  if (!state.actualGrades || state.compareActive !== true) return null;
+  const entry = state.actualGrades.byName[cardLookupName(card)];
+  return entry ? entry.all || null : null;
+}
+
+// 'match' | 'over' | 'under' | null (missing own grade or 17Lands data).
+function comparisonStatus(state, card) {
+  const ownGrade = cardGrade(state, card);
+  if (!ownGrade) return null;
+  const actual = actualGradeForCard(state, card);
+  return actual ? compareOwnVsActual(ownGrade, actual.grade) : null;
+}
+
+export function renderCompareSummary(state, el) {
+  if (!state.actualGrades || !state.compareActive) {
+    el.compareSummary.style.display = 'none';
+    return;
+  }
+
+  let match = 0;
+  let over = 0;
+  let under = 0;
+  let noData = 0;
+  for (const card of state.cards) {
+    if (!cardGrade(state, card)) continue;
+    const status = comparisonStatus(state, card);
+    if (!status) noData += 1;
+    else if (status === 'match') match += 1;
+    else if (status === 'over') over += 1;
+    else under += 1;
+  }
+
+  const compared = match + over + under;
+  const activeFilter = state.compareFilter || 'all';
+  const chips = [
+    ['all', 'All'],
+    ['match', 'Match'],
+    ['over', 'Overrated'],
+    ['under', 'Underrated'],
+  ].map(([value, label]) =>
+    `<button type="button" class="cmp-filter-chip${value === activeFilter ? ' active' : ''}" data-cmp="${value}">${label}</button>`
+  ).join('');
+
+  el.compareSummary.style.display = 'flex';
+  el.compareSummary.innerHTML = `
+    <span class="compare-total">${compared} graded cards compared</span>
+    <span class="compare-chip"><i class="dot cmp-match-dot"></i>${match} match</span>
+    <span class="compare-chip"><i class="dot cmp-over-dot"></i>${over} overrated · yours higher</span>
+    <span class="compare-chip"><i class="dot cmp-under-dot"></i>${under} underrated · yours lower</span>
+    ${noData ? `<span class="compare-chip">${noData} no 17Lands grade</span>` : ''}
+    <span class="compare-filter-group">${chips}</span>
+    <span class="compare-note">Actual grades come from 17Lands, relative within each colour pair (PremierDraft, all time). Over/under compare your A–E grade against the bucketed actual grade; lanes stay grouped by your grade.</span>
+  `;
+}
+
 function gridMatches(state, card) {
   const f = state.gridFilters;
+
+  if (state.compareActive && state.compareFilter) {
+    if (comparisonStatus(state, card) !== state.compareFilter) return false;
+  }
 
   if (f.grades.length) {
     const grade = cardGrade(state, card);
@@ -200,6 +263,7 @@ export function syncGridChips(state, el) {
 
 export function renderGridView(state, el) {
   hideHoverCard(el);
+  renderCompareSummary(state, el);
   const filtered = state.cards.filter(card => gridMatches(state, card));
   const lanes = [
     ...GRADES.map(g => ({ label: g, cards: filtered.filter(c => cardGrade(state, c) === g) })),
@@ -260,6 +324,18 @@ export function renderGridView(state, el) {
         img.alt = card.name;
         img.loading = 'lazy';
         btn.appendChild(img);
+
+        const actual = actualGradeForCard(state, card);
+        if (actual) {
+          const ownGrade = cardGrade(state, card);
+          const status = ownGrade ? compareOwnVsActual(ownGrade, actual.grade) : null;
+          if (status === 'over' || status === 'under') btn.classList.add('cmp-' + status);
+          const badge = document.createElement('span');
+          badge.className = 'cmp-badge' + (status ? ' cmp-' + status : '');
+          badge.textContent = (status === 'over' ? '↑ ' : status === 'under' ? '↓ ' : '') + actual.grade;
+          btn.appendChild(badge);
+        }
+
         btn.addEventListener('click', () => {
           setTab('grade', state, el, { index: filtered.indexOf(card) });
         });

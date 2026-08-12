@@ -5,6 +5,7 @@ import {
   updateProgress,
   render,
   renderGridView,
+  renderCompareSummary,
   setTab,
   gridFiltersActive,
   buildGridFilterBar,
@@ -32,6 +33,7 @@ function makeEl() {
     gridFilters: document.createElement('div'),
     gridLanes: document.createElement('div'),
     gridSearch: document.createElement('input'),
+    compareSummary: document.createElement('div'),
     hoverCard: document.createElement('div'),
     hoverCardImg: document.createElement('img'),
     cardImage: document.createElement('img'),
@@ -310,5 +312,186 @@ describe('render', () => {
     expect(el.cardName.textContent).toBe('Card A');
     expect(el.seal.textContent).toBe('A');
     expect(el.seal.style.display).toBe('flex');
+  });
+});
+
+describe('comparison rendering', () => {
+  function makeActualGrades() {
+    return {
+      byName: {
+        'Card A': { all: { grade: 'A', winrate: 0.6, gameCount: 800, score: 96 } },
+        'Card B': { all: { grade: 'C', winrate: 0.5, gameCount: 800, score: 50 } },
+        'Card C': { all: { grade: 'D-', winrate: 0.45, gameCount: 800, score: 18 } },
+      },
+    };
+  }
+
+  function badgeFor(el, cardName) {
+    return [...el.gridLanes.querySelectorAll('.lane-card')].find(b => b.title === cardName);
+  }
+
+  it('shows a match badge when the own grade matches the bucketed actual grade', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { a: { grade: 'A' } },
+      actualGrades: makeActualGrades(),
+      compareActive: true,
+    });
+    renderGridView(state, el);
+    const btn = badgeFor(el, 'Card A');
+    expect(btn.querySelector('.cmp-badge').textContent).toBe('A');
+    expect(btn.querySelector('.cmp-badge').classList.contains('cmp-match')).toBe(true);
+    expect(btn.classList.contains('cmp-over')).toBe(false);
+  });
+
+  it('flags the card as overrated when the own grade is higher than the data', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { b: { grade: 'A' } },
+      actualGrades: makeActualGrades(),
+      compareActive: true,
+    });
+    renderGridView(state, el);
+    const btn = badgeFor(el, 'Card B');
+    expect(btn.querySelector('.cmp-badge').textContent).toBe('↑ C');
+    expect(btn.classList.contains('cmp-over')).toBe(true);
+  });
+
+  it('flags the card as underrated when the own grade is lower than the data', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { c: { grade: 'E' } },
+      actualGrades: makeActualGrades(),
+      compareActive: true,
+    });
+    renderGridView(state, el);
+    const btn = badgeFor(el, 'Card C');
+    expect(btn.querySelector('.cmp-badge').textContent).toBe('↓ D-');
+    expect(btn.classList.contains('cmp-under')).toBe(true);
+  });
+
+  it('hides badges when comparison is off', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { a: { grade: 'A' } },
+      actualGrades: makeActualGrades(),
+      compareActive: false,
+    });
+    renderGridView(state, el);
+    expect(el.gridLanes.querySelectorAll('.cmp-badge')).toHaveLength(0);
+  });
+
+  it('renders an empty summary when comparison is off', () => {
+    const el = makeEl();
+    const state = makeState({});
+    renderCompareSummary(state, el);
+    expect(el.compareSummary.style.display).toBe('none');
+  });
+
+  it('summarises match, over, and under counts across graded cards', () => {
+    const el = makeEl();
+    const state = makeState({
+      grades: { a: { grade: 'A' }, b: { grade: 'A' }, c: { grade: 'E' } },
+      actualGrades: makeActualGrades(),
+      compareActive: true,
+    });
+    renderCompareSummary(state, el);
+    expect(el.compareSummary.style.display).toBe('flex');
+    expect(el.compareSummary.textContent).toContain('3 graded cards compared');
+    expect(el.compareSummary.textContent).toContain('1 match');
+    expect(el.compareSummary.textContent).toContain('1 overrated');
+    expect(el.compareSummary.textContent).toContain('1 underrated');
+  });
+
+  it('counts graded cards without a 17Lands grade separately', () => {
+    const el = makeEl();
+    const state = makeState({
+      grades: { a: { grade: 'A' } },
+      actualGrades: { byName: { 'Something Else': { all: { grade: 'A' } } } },
+      compareActive: true,
+    });
+    renderCompareSummary(state, el);
+    expect(el.compareSummary.textContent).toContain('0 graded cards compared');
+    expect(el.compareSummary.textContent).toContain('1 no 17Lands grade');
+  });
+
+  it('renders All/Match/Overrated/Underrated filter chips', () => {
+    const el = makeEl();
+    const state = makeState({ actualGrades: makeActualGrades(), compareActive: true });
+    renderCompareSummary(state, el);
+    const chips = [...el.compareSummary.querySelectorAll('.cmp-filter-chip')].map(c => c.dataset.cmp);
+    expect(chips).toEqual(['all', 'match', 'over', 'under']);
+    expect(el.compareSummary.querySelector('.cmp-filter-chip[data-cmp="all"]').classList.contains('active')).toBe(true);
+  });
+
+  it('marks the active filter chip', () => {
+    const el = makeEl();
+    const state = makeState({
+      actualGrades: makeActualGrades(),
+      compareActive: true,
+      compareFilter: 'over',
+    });
+    renderCompareSummary(state, el);
+    expect(el.compareSummary.querySelector('.cmp-filter-chip[data-cmp="over"]').classList.contains('active')).toBe(true);
+    expect(el.compareSummary.querySelector('.cmp-filter-chip[data-cmp="all"]').classList.contains('active')).toBe(false);
+  });
+
+  it('matches multi-face cards by the 17Lands name', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      cards: [
+        { id: 'p', name: 'Elite Interceptor // Rejoinder', layout: 'prepare', rarity: 'common', type_line: 'Creature', colors: ['W'], card_faces: [{ name: 'Elite Interceptor', image_uris: { normal: 'p.jpg' } }], image_uris: { normal: 'p.jpg' } },
+        { id: 's', name: 'Dazzling Theater // Prop Room', layout: 'split', rarity: 'rare', type_line: 'Sorcery', colors: ['R'], card_faces: [{ name: 'Dazzling Theater' }, { name: 'Prop Room' }], image_uris: { normal: 's.jpg' } },
+      ],
+      grades: { p: { grade: 'A' }, s: { grade: 'A' } },
+      actualGrades: {
+        byName: {
+          'Elite Interceptor': { all: { grade: 'B+', winrate: 0.59, gameCount: 172182, score: 88 } },
+          'Dazzling Theater // Prop Room': { all: { grade: 'F', winrate: 0.42, gameCount: 900, score: 0 } },
+        },
+      },
+      compareActive: true,
+    });
+    renderGridView(state, el);
+    const adventureBadge = badgeFor(el, 'Elite Interceptor // Rejoinder').querySelector('.cmp-badge');
+    expect(adventureBadge.textContent).toContain('B+');
+    const splitBadge = badgeFor(el, 'Dazzling Theater // Prop Room').querySelector('.cmp-badge');
+    expect(splitBadge.textContent).toContain('F');
+  });
+
+  it('filters lanes by comparison status', () => {
+    const el = makeEl();
+    const base = {
+      grades: { a: { grade: 'A' }, b: { grade: 'A' }, c: { grade: 'E' } },
+      actualGrades: makeActualGrades(),
+      compareActive: true,
+    };
+
+    let state = makeState({ ...base, compareFilter: 'over' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card B']);
+
+    state = makeState({ ...base, compareFilter: 'under' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card C']);
+
+    state = makeState({ ...base, compareFilter: 'match' });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')].map(b => b.title)).toEqual(['Card A']);
+
+    state = makeState({ ...base, compareFilter: null });
+    renderGridView(state, el);
+    expect([...el.gridLanes.querySelectorAll('.lane-card')]).toHaveLength(3);
+  });
+
+  it('treats gridFiltersActive as on when a comparison filter is set', () => {
+    expect(gridFiltersActive(makeState({ compareActive: true, compareFilter: 'over' }))).toBe(true);
+    expect(gridFiltersActive(makeState({ compareActive: true }))).toBe(false);
+    expect(gridFiltersActive(makeState({ compareFilter: 'over' }))).toBe(false);
   });
 });
