@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Card Grader — Latest Set</title>
+<title>Card Grader</title>
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/views.css">
 </head>
 <body>
 
 <div class="app">
-  <div class="header">
+  <div class="header" id="app-header">
     <div class="set-info">
       <div class="set-icon" id="set-icon"></div>
       <div>
@@ -31,6 +31,20 @@
   <div id="status" class="status-box">
     <div class="pulse"></div>
     Loading…
+  </div>
+
+  <div id="set-select-view" class="set-select-view" style="display:none;">
+    <div class="set-select-title">Card Grader</div>
+    <p class="set-select-sub">Pick a set to grade, or search for any expansion set by name.</p>
+    <input id="set-search" class="setup-input" type="search" placeholder="Search sets by name…" autocomplete="off" spellcheck="false">
+    <div id="set-search-results" class="set-search-results" style="display:none;"></div>
+    <div id="set-search-info" class="set-search-info" style="display:none;"></div>
+
+    <div id="set-recent-section">
+      <div class="set-select-label">Suggestions</div>
+      <div id="recent-sets" class="recent-sets"></div>
+      <div id="recent-sets-empty" class="empty-note" style="display:none;">No sets available.</div>
+    </div>
   </div>
 
   <div id="grade-view" style="display:none;">

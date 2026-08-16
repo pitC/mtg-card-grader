@@ -23,8 +23,23 @@ export async function fetchSetByCode(code) {
   return fetchJson(`https://api.scryfall.com/sets/${encodeURIComponent(code)}`);
 }
 
-export async function findLatestSet() {
+export async function fetchAllSets() {
   const data = await fetchJson('https://api.scryfall.com/sets');
+  return data.data;
+}
+
+// Sets with real cards available to grade. The app grades expansion sets only.
+export function expansionSets(sets) {
+  return sets.filter(s => s.card_count > 0 && s.released_at && s.set_type === 'expansion');
+}
+
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Sets released within +/- 1 month of today, newest first, excluding token-like
+// sets that have no real cards to grade.
+export function setsInWindow(sets) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const oneMonthAgo = new Date(today);
@@ -32,12 +47,10 @@ export async function findLatestSet() {
   const oneMonthFromNow = new Date(today);
   oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
 
-  const toDateStr = d =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const minDate = toDateStr(oneMonthAgo);
   const maxDate = toDateStr(oneMonthFromNow);
 
-  const candidates = data.data.filter(s =>
+  const candidates = sets.filter(s =>
     s.card_count > 0 &&
     s.released_at &&
     s.released_at >= minDate &&
@@ -46,7 +59,41 @@ export async function findLatestSet() {
     s.set_type !== 'memorabilia'
   );
   candidates.sort((a, b) => b.released_at.localeCompare(a.released_at));
-  return candidates[0];
+  return candidates;
+}
+
+// Starting-screen suggestions: expansion sets to be released within the next
+// month first (soonest first), then the most recently released expansion sets
+// to fill the list up to `count`. Future sets releasing further out are never
+// suggested.
+export function suggestSets(sets, count = 3) {
+  const pool = expansionSets(sets);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monthFromNow = new Date(today);
+  monthFromNow.setMonth(monthFromNow.getMonth() + 1);
+  const todayStr = toDateStr(today);
+  const maxDate = toDateStr(monthFromNow);
+
+  const upcoming = pool
+    .filter(s => s.released_at > todayStr && s.released_at <= maxDate)
+    .sort((a, b) => a.released_at.localeCompare(b.released_at));
+  const released = pool
+    .filter(s => s.released_at <= todayStr)
+    .sort((a, b) => b.released_at.localeCompare(a.released_at));
+
+  return upcoming.concat(released).slice(0, count);
+}
+
+export async function findLatestSet() {
+  const sets = await fetchAllSets();
+  return suggestSets(sets, 1)[0];
+}
+
+export async function findRecentSets(count = 3) {
+  const sets = await fetchAllSets();
+  return suggestSets(sets, count);
 }
 
 export async function fetchSetCards(code) {

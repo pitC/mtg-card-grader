@@ -5,7 +5,12 @@ import {
   fetchJson,
   getSetCodeFromUrl,
   fetchSetByCode,
+  fetchAllSets,
+  expansionSets,
+  setsInWindow,
+  suggestSets,
   findLatestSet,
+  findRecentSets,
   fetchSetCards,
 } from '../js/scryfall.js';
 
@@ -97,7 +102,7 @@ describe('fetchSetByCode', () => {
   });
 });
 
-describe('findLatestSet', () => {
+describe('fetchAllSets', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
   });
@@ -106,12 +111,119 @@ describe('findLatestSet', () => {
     vi.unstubAllGlobals();
   });
 
-  function isoDaysFromNow(days) {
-    const d = new Date();
-    d.setHours(12, 0, 0, 0);
-    d.setDate(d.getDate() + days);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
+  it('returns the sets array from the catalog', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ code: 'dsk' }, { code: 'mkm' }] }),
+    });
+    expect(await fetchAllSets()).toEqual([{ code: 'dsk' }, { code: 'mkm' }]);
+    expect(fetch).toHaveBeenCalledWith('https://api.scryfall.com/sets', expect.anything());
+  });
+});
+
+function isoDaysFromNow(days) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+describe('expansionSets', () => {
+  it('keeps only expansion sets with cards and a release date', () => {
+    const sets = [
+      { code: 'dsk', card_count: 300, released_at: isoDaysFromNow(-2), set_type: 'expansion' },
+      { code: 'cmdr', card_count: 100, released_at: isoDaysFromNow(-2), set_type: 'commander' },
+      { code: 'tok', card_count: 20, released_at: isoDaysFromNow(-2), set_type: 'token' },
+      { code: 'nocard', card_count: 0, released_at: isoDaysFromNow(-2), set_type: 'expansion' },
+      { code: 'nodate', card_count: 1, set_type: 'expansion' },
+    ];
+    expect(expansionSets(sets).map(s => s.code)).toEqual(['dsk']);
+  });
+});
+
+describe('setsInWindow', () => {
+  it('keeps real sets released within the window, newest first', () => {
+    const sets = [
+      { code: 'old', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' },
+      { code: 'tok', card_count: 1, released_at: isoDaysFromNow(-2), set_type: 'token' },
+      { code: 'mid', card_count: 1, released_at: isoDaysFromNow(-2), set_type: 'expansion' },
+      { code: 'new', card_count: 1, released_at: isoDaysFromNow(10), set_type: 'expansion' },
+      { code: 'nocard', card_count: 0, released_at: isoDaysFromNow(-1), set_type: 'expansion' },
+    ];
+    expect(setsInWindow(sets).map(s => s.code)).toEqual(['new', 'mid']);
+  });
+});
+
+describe('suggestSets', () => {
+  it('puts sets in the window first and fills with the latest released sets', () => {
+    const sets = [
+      { code: 'older', card_count: 1, released_at: isoDaysFromNow(-180), set_type: 'expansion' },
+      { code: 'old', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' },
+      { code: 'new', card_count: 1, released_at: isoDaysFromNow(2), set_type: 'expansion' },
+    ];
+    expect(suggestSets(sets).map(s => s.code)).toEqual(['new', 'old', 'older']);
+  });
+
+  it('ignores non-expansion sets even when they are recent', () => {
+    const sets = [
+      { code: 'cmdr', card_count: 1, released_at: isoDaysFromNow(1), set_type: 'commander' },
+      { code: 'a', card_count: 1, released_at: isoDaysFromNow(2), set_type: 'expansion' },
+      { code: 'b', card_count: 1, released_at: isoDaysFromNow(-2), set_type: 'expansion' },
+    ];
+    expect(suggestSets(sets).map(s => s.code)).toEqual(['a', 'b']);
+  });
+
+  it('respects the requested count', () => {
+    const sets = [
+      { code: 'old', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' },
+      { code: 'a', card_count: 1, released_at: isoDaysFromNow(1), set_type: 'expansion' },
+      { code: 'b', card_count: 1, released_at: isoDaysFromNow(0), set_type: 'expansion' },
+      { code: 'c', card_count: 1, released_at: isoDaysFromNow(-1), set_type: 'expansion' },
+    ];
+    expect(suggestSets(sets, 2).map(s => s.code)).toEqual(['a', 'b']);
+  });
+
+  it('never suggests future sets releasing more than a month out', () => {
+    const sets = [
+      { code: 'far', card_count: 1, released_at: isoDaysFromNow(45), set_type: 'expansion' },
+      { code: 'new', card_count: 1, released_at: isoDaysFromNow(2), set_type: 'expansion' },
+      { code: 'old', card_count: 1, released_at: isoDaysFromNow(-30), set_type: 'expansion' },
+      { code: 'older', card_count: 1, released_at: isoDaysFromNow(-60), set_type: 'expansion' },
+    ];
+    expect(suggestSets(sets).map(s => s.code)).toEqual(['new', 'old', 'older']);
+  });
+
+  it('orders upcoming sets by soonest release first', () => {
+    const sets = [
+      { code: 'later', card_count: 1, released_at: isoDaysFromNow(20), set_type: 'expansion' },
+      { code: 'sooner', card_count: 1, released_at: isoDaysFromNow(5), set_type: 'expansion' },
+      { code: 'old', card_count: 1, released_at: isoDaysFromNow(-30), set_type: 'expansion' },
+    ];
+    expect(suggestSets(sets).map(s => s.code)).toEqual(['sooner', 'later', 'old']);
+  });
+
+  it('shows only released sets when there is no upcoming set within a month', () => {
+    const sets = [
+      { code: 'old', card_count: 1, released_at: isoDaysFromNow(-30), set_type: 'expansion' },
+      { code: 'older', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' },
+      { code: 'new', card_count: 1, released_at: isoDaysFromNow(0), set_type: 'expansion' },
+    ];
+    expect(suggestSets(sets).map(s => s.code)).toEqual(['new', 'old', 'older']);
+  });
+
+  it('returns an empty list when there are no expansion sets', () => {
+    expect(suggestSets([])).toEqual([]);
+  });
+});
+
+describe('findLatestSet', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('returns the newest eligible set in the window', async () => {
     vi.mocked(fetch).mockResolvedValue({
@@ -128,14 +240,91 @@ describe('findLatestSet', () => {
     expect((await findLatestSet()).code).toBe('recent');
   });
 
-  it('returns undefined when no set is in the window', async () => {
+  it('returns the newest expansion set when the window is empty', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         data: [{ code: 'old', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' }],
       }),
     });
+    expect((await findLatestSet()).code).toBe('old');
+  });
+
+  it('returns undefined when there are no expansion sets', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ code: 'tok', card_count: 1, released_at: isoDaysFromNow(-2), set_type: 'token' }],
+      }),
+    });
     expect(await findLatestSet()).toBeUndefined();
+  });
+});
+
+describe('findRecentSets', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('suggests upcoming sets soonest-first, then recently released sets', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { code: 'old', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' },
+          { code: 'a', card_count: 1, released_at: isoDaysFromNow(3), set_type: 'expansion' },
+          { code: 'b', card_count: 1, released_at: isoDaysFromNow(1), set_type: 'expansion' },
+          { code: 'c', card_count: 1, released_at: isoDaysFromNow(-1), set_type: 'expansion' },
+          { code: 'd', card_count: 1, released_at: isoDaysFromNow(-3), set_type: 'expansion' },
+        ],
+      }),
+    });
+    expect((await findRecentSets()).map(s => s.code)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('respects the requested count', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { code: 'a', card_count: 1, released_at: isoDaysFromNow(1), set_type: 'expansion' },
+          { code: 'b', card_count: 1, released_at: isoDaysFromNow(0), set_type: 'expansion' },
+          { code: 'c', card_count: 1, released_at: isoDaysFromNow(-1), set_type: 'expansion' },
+        ],
+      }),
+    });
+    expect((await findRecentSets(2)).map(s => s.code)).toEqual(['a', 'b']);
+  });
+
+  it('fills with the latest released sets when the window is empty', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { code: 'older', card_count: 1, released_at: isoDaysFromNow(-120), set_type: 'expansion' },
+          { code: 'old', card_count: 1, released_at: isoDaysFromNow(-90), set_type: 'expansion' },
+        ],
+      }),
+    });
+    expect((await findRecentSets()).map(s => s.code)).toEqual(['old', 'older']);
+  });
+
+  it('never suggests non-expansion sets', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { code: 'cmdr', card_count: 1, released_at: isoDaysFromNow(1), set_type: 'commander' },
+          { code: 'a', card_count: 1, released_at: isoDaysFromNow(2), set_type: 'expansion' },
+          { code: 'b', card_count: 1, released_at: isoDaysFromNow(0), set_type: 'expansion' },
+        ],
+      }),
+    });
+    expect((await findRecentSets()).map(s => s.code)).toEqual(['a', 'b']);
   });
 });
 

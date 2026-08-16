@@ -1,6 +1,7 @@
 import { ensureSyncConfig, fetchAllGrades, persistGrades } from './firestore.js';
 import { loadLocalCache } from './storage.js';
-import { fetchSetByCode, findLatestSet, fetchSetCards, getSetCodeFromUrl } from './scryfall.js';
+import { fetchSetByCode, fetchSetCards, getSetCodeFromUrl } from './scryfall.js';
+import { initSetSelect } from './setSelect.js';
 import { GRADES } from './constants.js';
 import { buildActualGrades, loadActualCache, saveActualCache } from './actualGrades.js';
 import {
@@ -32,6 +33,14 @@ const state = {
 
 const el = {
   status: document.getElementById('status'),
+  appHeader: document.getElementById('app-header'),
+  setSelectView: document.getElementById('set-select-view'),
+  setSearch: document.getElementById('set-search'),
+  setSearchResults: document.getElementById('set-search-results'),
+  setSearchInfo: document.getElementById('set-search-info'),
+  setRecentSection: document.getElementById('set-recent-section'),
+  recentSets: document.getElementById('recent-sets'),
+  recentSetsEmpty: document.getElementById('recent-sets-empty'),
   gradeView: document.getElementById('grade-view'),
   gradeContent: document.getElementById('grade-content'),
   gradeEmpty: document.getElementById('grade-empty'),
@@ -193,21 +202,40 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') move(1);
 });
 
+async function initSetSelectScreen() {
+  el.appHeader.style.display = 'none';
+  el.status.style.display = 'none';
+  el.setSelectView.style.display = 'block';
+  try {
+    await initSetSelect(el);
+  } catch (err) {
+    el.setSelectView.style.display = 'none';
+    el.status.style.display = 'block';
+    el.status.innerHTML = `
+      <div>Could not load the set list from Scryfall.</div>
+      <div style="font-size:11px; margin-top:6px; color: var(--muted-dim);">${err.message}</div>
+      <button class="retry" id="retry-btn">Retry</button>
+    `;
+    document.getElementById('retry-btn').addEventListener('click', initSetSelectScreen);
+  }
+}
+
 async function init() {
+  const requestedSet = getSetCodeFromUrl();
+  if (!requestedSet) {
+    await initSetSelectScreen();
+    return;
+  }
+
   try {
     const { collectionKey, cloudSync } = await ensureSyncConfig(el.status);
     state.collectionKey = collectionKey;
     state.cloudSync = cloudSync;
     if (!cloudSync) setSyncStatus('Local only');
 
-    const requestedSet = getSetCodeFromUrl();
-    el.status.innerHTML = requestedSet
-      ? `<div class="pulse"></div>Fetching set “${requestedSet}” from Scryfall…`
-      : '<div class="pulse"></div>Fetching the latest set from Scryfall…';
+    el.status.innerHTML = `<div class="pulse"></div>Fetching set “${requestedSet}” from Scryfall…`;
 
-    const set = requestedSet
-      ? await fetchSetByCode(requestedSet)
-      : await findLatestSet();
+    const set = await fetchSetByCode(requestedSet);
     if (!set) throw new Error('No suitable set found');
     state.setCode = set.code;
 
@@ -248,10 +276,7 @@ async function init() {
       <button class="retry" id="retry-btn">Retry</button>
     `;
     document.getElementById('retry-btn').addEventListener('click', () => {
-      const requestedSet = getSetCodeFromUrl();
-      el.status.innerHTML = requestedSet
-        ? `<div class="pulse"></div>Fetching set “${requestedSet}” from Scryfall…`
-        : '<div class="pulse"></div>Fetching the latest set from Scryfall…';
+      el.status.innerHTML = `<div class="pulse"></div>Fetching set “${getSetCodeFromUrl()}” from Scryfall…`;
       init();
     });
   }

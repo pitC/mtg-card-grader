@@ -12,10 +12,12 @@ public [Scryfall API](https://scryfall.com/docs/api).
 
 ## How it works
 
-When the app opens it asks for a shared collection key (or you can **Skip
-(local only)** and keep grades in the browser). It then pulls the latest
-released set from Scryfall, or a specific set if you add `?set=<code>` to the
-URL, and loads that set's cards.
+When the app opens it shows a **set selection** screen: three expansion-set
+suggestions (sets to be released within the next month first, then the most
+recently released expansion sets) plus a live search over expansion sets by
+name. Picking a set navigates to `?set=<code>`, which then asks for a shared
+collection key (or you can **Skip (local only)** to keep grades in the
+browser) and loads that set's cards.
 
 ### Views
 
@@ -160,11 +162,12 @@ npm run lint   # run ESLint
 ```text
 index.html        App shell and markup
 css/              base.css (layout/theme), views.css (per-view styles)
-js/
-  app.js          Bootstrap, state, and event wiring
-  constants.js    Grades and analysis filter values
-  scryfall.js     Scryfall API calls and helpers
-  actualGrades.js 17Lands fetch (CORS proxy), grading, and comparison logic
+  js/
+    app.js          Bootstrap, state, and event wiring
+    constants.js    Grades and analysis filter values
+    scryfall.js     Scryfall API calls and helpers
+    setSelect.js    Set-selection starting screen (recent sets + search)
+    actualGrades.js 17Lands fetch (CORS proxy), grading, and comparison logic
   render.js       Grade, Grid, and Analysis view rendering
   storage.js      localStorage cache and sync preferences
   firebase.js     Lazy Firebase web SDK loading
