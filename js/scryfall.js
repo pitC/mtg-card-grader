@@ -10,7 +10,7 @@ export function cardImageUrl(card, size) {
 
 export async function fetchJson(url) {
   const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-  if (!res.ok) throw new Error('Request failed: ' + res.status);
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 }
 

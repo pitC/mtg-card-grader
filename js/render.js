@@ -251,7 +251,7 @@ export function buildGridFilterBar(state, el) {
     g.values.forEach(v => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'chip' + (v.cls ? ' ' + v.cls : '');
+      btn.className = `chip${v.cls ? ` ${v.cls}` : ''}`;
       btn.dataset.group = g.key;
       btn.dataset.value = v.value;
       btn.textContent = v.value.toUpperCase();
@@ -319,11 +319,11 @@ export function renderGridView(state, el) {
     head.setAttribute('aria-expanded', String(!collapsed));
 
     const caret = document.createElement('span');
-    caret.className = 'lane-caret' + (collapsed ? ' collapsed' : '');
+    caret.className = `lane-caret${collapsed ? ' collapsed' : ''}`;
     caret.textContent = '▾';
 
     const grade = document.createElement('span');
-    grade.className = 'lane-grade' + (lane.label === 'Ungraded' ? ' muted' : '');
+    grade.className = `lane-grade${lane.label === 'Ungraded' ? ' muted' : ''}`;
     grade.textContent = lane.label;
 
     const count = document.createElement('span');
@@ -342,7 +342,7 @@ export function renderGridView(state, el) {
     laneEl.appendChild(head);
 
     const track = document.createElement('div');
-    track.className = 'lane-track' + (collapsed ? ' collapsed' : '');
+    track.className = `lane-track${collapsed ? ' collapsed' : ''}`;
     if (!lane.cards.length) {
       const empty = document.createElement('div');
       empty.className = 'lane-empty';
@@ -365,10 +365,10 @@ export function renderGridView(state, el) {
         if (actual) {
           const ownGrade = cardGrade(state, card);
           const status = ownGrade ? compareOwnVsActual(ownGrade, actual.grade) : null;
-          if (status === 'over' || status === 'under') btn.classList.add('cmp-' + status);
+          if (status === 'over' || status === 'under') btn.classList.add(`cmp-${status}`);
           const badge = document.createElement('span');
-          badge.className = 'cmp-badge' + (status ? ' cmp-' + status : '');
-          badge.textContent = (status === 'over' ? '↑ ' : status === 'under' ? '↓ ' : '') + actual.grade;
+          badge.className = `cmp-badge${status ? ` cmp-${status}` : ''}`;
+          badge.textContent = `${status === 'over' ? '↑ ' : status === 'under' ? '↓ ' : ''}${actual.grade}`;
           btn.appendChild(badge);
         }
 
@@ -443,8 +443,8 @@ function positionHoverCard(el, x, y) {
   if (left + w > window.innerWidth - 8) left = x - w - 18;
   let top = y - h / 2;
   top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
-  preview.style.left = left + 'px';
-  preview.style.top = top + 'px';
+  preview.style.left = `${left}px`;
+  preview.style.top = `${top}px`;
 }
 
 export function setupHoverEvents(state, el) {
