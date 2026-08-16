@@ -13,6 +13,7 @@ import {
 function makeEl() {
   return {
     recentSetsEmpty: document.createElement('div'),
+    recentSetsLoading: document.createElement('div'),
     recentSets: document.createElement('div'),
     setSearch: document.createElement('input'),
     setSearchResults: document.createElement('div'),
@@ -217,5 +218,24 @@ describe('initSetSelect', () => {
   it('throws when the catalog request fails', async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 500 });
     await expect(initSetSelect(makeEl())).rejects.toThrow('Request failed: 500');
+  });
+
+  it('shows the loading indicator while fetching and hides it afterwards', async () => {
+    let resolveFetch;
+    vi.mocked(fetch).mockImplementation(() => new Promise(resolve => {
+      resolveFetch = () => resolve({
+        ok: true,
+        json: async () => ({ data: [] }),
+      });
+    }));
+
+    const el = makeEl();
+    const promise = initSetSelect(el);
+    const loading = el.recentSetsLoading;
+    expect(loading.style.display).toBe('flex');
+
+    resolveFetch();
+    await promise;
+    expect(loading.style.display).toBe('none');
   });
 });

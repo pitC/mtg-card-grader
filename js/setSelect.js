@@ -82,18 +82,24 @@ function selectFirstResult(el) {
 // suggestions (sets released or to be released within +/- 1 month, filled out
 // with the latest released sets), plus live name search.
 export async function initSetSelect(el) {
-  const sets = await fetchAllSets();
-  const pool = expansionSets(sets);
+  const loading = el.recentSetsLoading;
+  if (loading) loading.style.display = 'flex';
+  try {
+    const sets = await fetchAllSets();
+    const pool = expansionSets(sets);
 
-  renderRecentSets(el, suggestSets(pool, 3));
+    renderRecentSets(el, suggestSets(pool, 3));
 
-  el.setSearch.addEventListener('input', () => updateSearchResults(el, pool));
-  el.setSearch.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      selectFirstResult(el);
-    }
-  });
-  el.setSearchResults.addEventListener('click', handleSetClick);
-  el.recentSets.addEventListener('click', handleSetClick);
+    el.setSearch.addEventListener('input', () => updateSearchResults(el, pool));
+    el.setSearch.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        selectFirstResult(el);
+      }
+    });
+    el.setSearchResults.addEventListener('click', handleSetClick);
+    el.recentSets.addEventListener('click', handleSetClick);
+  } finally {
+    if (loading) loading.style.display = 'none';
+  }
 }

@@ -39,6 +39,7 @@ const el = {
   setSearchResults: document.getElementById('set-search-results'),
   setSearchInfo: document.getElementById('set-search-info'),
   setRecentSection: document.getElementById('set-recent-section'),
+  recentSetsLoading: document.getElementById('recent-sets-loading'),
   recentSets: document.getElementById('recent-sets'),
   recentSetsEmpty: document.getElementById('recent-sets-empty'),
   gradeView: document.getElementById('grade-view'),

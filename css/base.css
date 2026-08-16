@@ -339,3 +339,21 @@ button:focus-visible, a:focus-visible {
   background: var(--panel);
   overflow: hidden;
 }
+
+.set-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.set-loading .pulse {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--table-center), transparent 70%);
+  animation: pulse 1.6s ease-in-out infinite;
+}
