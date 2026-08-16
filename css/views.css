@@ -262,6 +262,21 @@
 
 .reset-btn:hover { color: var(--ink); border-color: var(--brass); }
 
+.filter-summary {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  font-size: 11px;
+  color: var(--muted-dim);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.filter-summary strong { color: var(--muted); font-weight: 600; }
+
 .search-input {
   min-width: 180px;
   background: var(--panel);

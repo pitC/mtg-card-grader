@@ -109,6 +109,24 @@ describe('applyFilter', () => {
     expect(state.filtered.map(c => c.id)).toEqual(['b', 'c']);
   });
 
+  it('keeps cards matching the query against oracle text', () => {
+    const state = makeState({
+      gridFilters: { grades: [], colors: [], rarities: [], query: 'investigate' },
+    });
+    state.cards[0].oracle_text = 'Whenever a creature you control attacks alone, investigate.';
+    applyFilter(state);
+    expect(state.filtered.map(c => c.id)).toEqual(['a']);
+  });
+
+  it('keeps cards matching the query against oracle text in any case', () => {
+    const state = makeState({
+      gridFilters: { grades: [], colors: [], rarities: [], query: 'INVESTIGATE' },
+    });
+    state.cards[0].oracle_text = 'Whenever a creature you control attacks alone, investigate.';
+    applyFilter(state);
+    expect(state.filtered.map(c => c.id)).toEqual(['a']);
+  });
+
   it('clamps index into the filtered range', () => {
     const state = makeState({ index: 5 });
     applyFilter(state);
@@ -244,6 +262,26 @@ describe('buildGridFilterBar', () => {
     expect(el.gridFilters.classList.contains('collapsed')).toBe(false);
     toggle.click();
     expect(el.gridFilters.classList.contains('collapsed')).toBe(true);
+  });
+
+  it('renders a filter summary that reflects matching card counts', () => {
+    const el = makeEl();
+    const state = makeState({
+      grades: { a: { grade: 'A' } },
+      gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
+    });
+    buildGridFilterBar(state, el);
+    expect(el.gridFilterSummary).toBeTruthy();
+    renderGridView(state, el);
+    expect(el.gridFilterSummary.innerHTML).toBe('<strong>1</strong> / 3 cards match');
+  });
+
+  it('shows the total card count when no filters are active', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    renderGridView(state, el);
+    expect(el.gridFilterSummary.innerHTML).toBe('<strong>3</strong> cards');
   });
 });
 

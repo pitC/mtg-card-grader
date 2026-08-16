@@ -171,7 +171,8 @@ function gridMatches(state, card) {
     const q = f.query.toLowerCase();
     const nameHit = (card.name || '').toLowerCase().includes(q);
     const typeHit = (card.type_line || '').toLowerCase().includes(q);
-    if (!nameHit && !typeHit) return false;
+    const oracleHit = (card.oracle_text || '').toLowerCase().includes(q);
+    if (!nameHit && !typeHit && !oracleHit) return false;
   }
 
   return true;
@@ -211,7 +212,7 @@ export function buildGridFilterBar(state, el) {
   searchInput.type = 'text';
   searchInput.className = 'search-input';
   searchInput.id = 'grid-search';
-  searchInput.placeholder = 'Card name or type…';
+  searchInput.placeholder = 'Card name, type, or text…';
   searchInput.autocomplete = 'off';
   searchInput.spellcheck = false;
   searchInput.addEventListener('input', () => {
@@ -266,6 +267,11 @@ export function buildGridFilterBar(state, el) {
   reset.textContent = 'Reset filters';
   body.appendChild(reset);
 
+  const summary = document.createElement('div');
+  summary.className = 'filter-summary';
+  body.appendChild(summary);
+  el.gridFilterSummary = summary;
+
   if (mobileQuery) {
     mobileQuery.addEventListener('change', e => {
       if (!e.matches) state.gridFiltersCollapsed = false;
@@ -289,6 +295,12 @@ export function renderGridView(state, el) {
   hideHoverCard(el);
   renderCompareSummary(state, el);
   const filtered = state.cards.filter(card => gridMatches(state, card));
+  if (el.gridFilterSummary) {
+    const total = state.cards.length;
+    el.gridFilterSummary.innerHTML = gridFiltersActive(state)
+      ? `<strong>${filtered.length}</strong> / ${total} cards match`
+      : `<strong>${total}</strong> cards`;
+  }
   const lanes = [
     ...GRADES.map(g => ({ label: g, cards: filtered.filter(c => cardGrade(state, c) === g) })),
     { label: 'Ungraded', cards: filtered.filter(c => !cardGrade(state, c)) },
