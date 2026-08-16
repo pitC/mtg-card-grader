@@ -12,6 +12,22 @@ export function normalizeCollectionKey(input) {
   return trimmed && !trimmed.includes('/') ? trimmed : null;
 }
 
+// Document ID that stores collection-level metadata (e.g. a description).
+export const METADATA_DOCUMENT_ID = 'metadata';
+
+// Description of a collection, kept in its metadata document.
+export async function fetchCollectionMetadata(collectionKey) {
+  if (!collectionKey) return null;
+  try {
+    const { db, doc, getDoc } = await getFirestoreApi();
+    const snapshot = await getDoc(doc(db, collectionKey, METADATA_DOCUMENT_ID));
+    return snapshot.exists() ? snapshot.data() : null;
+  } catch (e) {
+    console.error(`[Card Grader] Collection metadata fetch error for "${collectionKey}"`, e);
+    return null;
+  }
+}
+
 export function showFirestoreSetup(statusEl) {
   return new Promise(resolve => {
     statusEl.style.display = 'block';

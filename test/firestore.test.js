@@ -126,6 +126,56 @@ describe('fetchAllGrades', () => {
   });
 });
 
+describe('fetchCollectionMetadata', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(getFirestoreApi).mockReset();
+  });
+
+  it('returns the metadata document when it exists', async () => {
+    const doc = vi.fn().mockReturnValue({ path: 'key-123/metadata' });
+    vi.mocked(getFirestoreApi).mockResolvedValue({
+      db: {},
+      doc,
+      getDoc: vi.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({ description: 'My sealed draft pod' }),
+      }),
+      setDoc: vi.fn(),
+    });
+    const result = await firestore.fetchCollectionMetadata('key-123');
+    expect(result).toEqual({ description: 'My sealed draft pod' });
+    expect(doc).toHaveBeenCalledWith({}, 'key-123', firestore.METADATA_DOCUMENT_ID);
+  });
+
+  it('returns null when the metadata document is missing', async () => {
+    vi.mocked(getFirestoreApi).mockResolvedValue({
+      db: {},
+      doc: vi.fn(),
+      getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
+      setDoc: vi.fn(),
+    });
+    expect(await firestore.fetchCollectionMetadata('key-123')).toBeNull();
+  });
+
+  it('returns null without a collection key', async () => {
+    expect(await firestore.fetchCollectionMetadata('')).toBeNull();
+    expect(getFirestoreApi).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the read throws', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(getFirestoreApi).mockResolvedValue({
+      db: {},
+      doc: vi.fn(),
+      getDoc: vi.fn().mockRejectedValue(new Error('offline')),
+      setDoc: vi.fn(),
+    });
+    expect(await firestore.fetchCollectionMetadata('key-123')).toBeNull();
+    consoleError.mockRestore();
+  });
+});
+
 describe('persistGrades', () => {
   beforeEach(() => {
     localStorage.clear();

@@ -2,13 +2,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   COLLECTION_KEY,
+  COLLECTION_KEYS_KEY,
   FIRESTORE_SKIPPED_KEY,
   parseStoredGrades,
   localCacheKey,
   loadLocalCache,
   saveLocalCache,
   loadStoredCollectionKey,
+  loadStoredCollectionKeys,
   saveStoredCollectionKey,
+  removeStoredCollectionKey,
   markFirestoreSkipped,
   isFirestoreSkipped,
 } from '../js/storage.js';
@@ -90,5 +93,48 @@ describe('collection key helpers', () => {
 
   it('isFirestoreSkipped is false by default', () => {
     expect(isFirestoreSkipped()).toBe(false);
+  });
+
+  it('loads a list of previously saved collection keys, most recent first', () => {
+    saveStoredCollectionKey('key-123');
+    saveStoredCollectionKey('key-456');
+    expect(loadStoredCollectionKeys()).toEqual(['key-456', 'key-123']);
+  });
+
+  it('deduplicates keys when saving again', () => {
+    saveStoredCollectionKey('key-123');
+    saveStoredCollectionKey('key-456');
+    saveStoredCollectionKey('key-123');
+    expect(loadStoredCollectionKeys()).toEqual(['key-123', 'key-456']);
+  });
+
+  it('grows from the legacy single key', () => {
+    localStorage.setItem(COLLECTION_KEY, 'key-123');
+    expect(loadStoredCollectionKeys()).toEqual(['key-123']);
+    saveStoredCollectionKey('key-456');
+    expect(loadStoredCollectionKeys()).toEqual(['key-456', 'key-123']);
+  });
+
+  it('removes a saved key without touching the active key', () => {
+    saveStoredCollectionKey('key-123');
+    saveStoredCollectionKey('key-456');
+    removeStoredCollectionKey('key-123');
+    expect(loadStoredCollectionKeys()).toEqual(['key-456']);
+    expect(loadStoredCollectionKey()).toBe('key-456');
+  });
+
+  it('keeps the active key listed even after it is forgotten', () => {
+    saveStoredCollectionKey('key-123');
+    saveStoredCollectionKey('key-456');
+    removeStoredCollectionKey('key-123');
+    removeStoredCollectionKey('key-456');
+    expect(localStorage.getItem(COLLECTION_KEYS_KEY)).toBe('[]');
+    expect(loadStoredCollectionKey()).toBe('key-456');
+    expect(loadStoredCollectionKeys()).toEqual(['key-456']);
+  });
+
+  it('clear list returns [], tolerating malformed JSON', () => {
+    localStorage.setItem(COLLECTION_KEYS_KEY, 'not json');
+    expect(loadStoredCollectionKeys()).toEqual([]);
   });
 });

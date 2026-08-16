@@ -1,4 +1,5 @@
 export const COLLECTION_KEY = 'scryfallCardGraderFirestoreCollection';
+export const COLLECTION_KEYS_KEY = 'scryfallCardGraderFirestoreCollections';
 export const FIRESTORE_SKIPPED_KEY = 'scryfallCardGraderFirestoreSkipped';
 
 const LEGACY_LOCAL_KEY = 'scryfallCardGraderGrades';
@@ -43,9 +44,30 @@ export function loadStoredCollectionKey() {
   return localStorage.getItem(COLLECTION_KEY);
 }
 
+export function loadStoredCollectionKeys() {
+  let keys = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(COLLECTION_KEYS_KEY));
+    if (Array.isArray(stored)) keys = stored.filter(k => typeof k === 'string' && k.length > 0);
+  } catch {
+    // malformed list; fall through to the legacy single key
+  }
+  const active = localStorage.getItem(COLLECTION_KEY);
+  if (active && !keys.includes(active)) keys.push(active);
+  return keys;
+}
+
 export function saveStoredCollectionKey(collectionKey) {
+  const keys = loadStoredCollectionKeys().filter(k => k !== collectionKey);
+  keys.unshift(collectionKey);
+  localStorage.setItem(COLLECTION_KEYS_KEY, JSON.stringify(keys));
   localStorage.setItem(COLLECTION_KEY, collectionKey);
   localStorage.removeItem(FIRESTORE_SKIPPED_KEY);
+}
+
+export function removeStoredCollectionKey(collectionKey) {
+  const keys = loadStoredCollectionKeys().filter(k => k !== collectionKey);
+  localStorage.setItem(COLLECTION_KEYS_KEY, JSON.stringify(keys));
 }
 
 export function markFirestoreSkipped() {

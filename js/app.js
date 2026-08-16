@@ -1,8 +1,7 @@
-import { ensureSyncConfig, fetchAllGrades, persistGrades } from './firestore.js';
-import { loadLocalCache } from './storage.js';
+import { ensureSyncConfig, fetchAllGrades, persistGrades, normalizeCollectionKey, fetchCollectionMetadata } from './firestore.js';
+import { loadLocalCache, loadStoredCollectionKeys, removeStoredCollectionKey, saveStoredCollectionKey, markFirestoreSkipped } from './storage.js';
 import { fetchSetByCode, fetchSetCards, getSetCodeFromUrl } from './scryfall.js';
 import { initSetSelect } from './setSelect.js';
-import { GRADES } from './constants.js';
 import { buildActualGrades, loadActualCache, saveActualCache } from './actualGrades.js';
 import {
   render,
@@ -60,6 +59,7 @@ const el = {
   clearBtn: document.getElementById('clear-btn'),
   tabGroup: document.getElementById('tab-group'),
   syncStatus: document.getElementById('sync-status'),
+  syncKeyBtn: document.getElementById('sync-key-btn'),
   gridFilters: document.getElementById('grid-filters'),
   gridLanes: document.getElementById('grid-lanes'),
   gridSearch: document.getElementById('grid-search'),
@@ -72,6 +72,172 @@ const el = {
 
 function setSyncStatus(text) {
   el.syncStatus.textContent = text;
+}
+
+function updateSyncKeyButton() {
+  el.syncKeyBtn.textContent = state.collectionKey || 'No sync';
+  el.syncKeyBtn.classList.toggle('active', !!state.collectionKey);
+}
+
+async function applySyncId(collectionKey) {
+  if (collectionKey) saveStoredCollectionKey(collectionKey);
+  else markFirestoreSkipped();
+  state.collectionKey = collectionKey;
+  state.cloudSync = !!collectionKey;
+
+  const localGrades = loadLocalCache(state.setCode, state.cards);
+  const result = await fetchAllGrades({
+    collectionKey: state.collectionKey,
+    setCode: state.setCode,
+    localGrades,
+    onStatus: setSyncStatus,
+  });
+  state.grades = result.grades;
+  if (!result.cloudSync) {
+    state.cloudSync = false;
+    state.collectionKey = null;
+  }
+  updateSyncKeyButton();
+  render(state, el);
+}
+
+function openChangeSyncId() {
+  function renderKeyList(keys) {
+    const list = document.createElement('div');
+    list.className = 'sync-key-list';
+    if (!keys.length) {
+      const empty = document.createElement('div');
+      empty.className = 'sync-key-empty';
+      empty.textContent = 'No saved sync ids.';
+      list.appendChild(empty);
+      return list;
+    }
+    for (const key of keys) {
+      const row = document.createElement('div');
+      row.className = 'sync-key-row';
+      if (key === state.collectionKey) row.classList.add('active');
+
+      const choose = document.createElement('button');
+      choose.type = 'button';
+      choose.className = 'sync-key-choose';
+
+      const idText = document.createElement('span');
+      idText.className = 'sync-key-id';
+      idText.textContent = key;
+      choose.appendChild(idText);
+
+      choose.addEventListener('click', () => {
+        close();
+        applySyncId(key);
+      });
+
+      fetchCollectionMetadata(key).then(meta => {
+        const description = meta && meta.description;
+        const descText = document.createElement('span');
+        descText.className = `sync-key-desc${description ? '' : ' empty'}`;
+        descText.textContent = description || 'No description';
+        choose.appendChild(descText);
+      });
+
+      const forget = document.createElement('button');
+      forget.type = 'button';
+      forget.className = 'sync-key-remove';
+      forget.title = 'Forget this sync id';
+      forget.textContent = 'Forget';
+      forget.addEventListener('click', () => {
+        removeStoredCollectionKey(key);
+        list.replaceChildren(renderKeyList(loadStoredCollectionKeys()));
+      });
+
+      row.appendChild(choose);
+      row.appendChild(forget);
+      list.appendChild(row);
+    }
+    return list;
+  }
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'setup-input';
+  input.id = 'sync-key-input';
+  input.placeholder = 'New sync id, then “Use this id”…';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+
+  const actions = document.createElement('div');
+  actions.className = 'setup-actions';
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'primary';
+  save.id = 'sync-key-save';
+  save.textContent = 'Use this id';
+  save.addEventListener('click', async () => {
+    const key = normalizeCollectionKey(input.value);
+    if (!key) {
+      input.setCustomValidity('Enter a sync id without slashes.');
+      input.reportValidity();
+      input.focus();
+      return;
+    }
+    input.setCustomValidity('');
+    close();
+    await applySyncId(key);
+  });
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.id = 'sync-key-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', close);
+
+  actions.appendChild(save);
+  actions.appendChild(cancel);
+
+  const title = document.createElement('p');
+  title.className = 'modal-title';
+  title.textContent = 'Sync id';
+
+  const note = document.createElement('p');
+  note.className = 'modal-note';
+  note.textContent = 'Grades for this set are stored under a shared collection id. Pick a saved one to switch, or enter a new id.';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.appendChild(title);
+  modal.appendChild(note);
+  modal.appendChild(renderKeyList(loadStoredCollectionKeys()));
+  modal.appendChild(input);
+  modal.appendChild(actions);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.appendChild(modal);
+
+  document.body.appendChild(overlay);
+
+  input.focus();
+
+  const onKey = e => {
+    if (e.key === 'Escape') close();
+  };
+  document.addEventListener('keydown', onKey);
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) close();
+  });
+
+  input.addEventListener('keydown', e => {
+    input.setCustomValidity('');
+    if (e.key === 'Enter') save.click();
+  });
+
+  function close() {
+    document.removeEventListener('keydown', onKey);
+    overlay.remove();
+  }
 }
 
 async function gradeCurrentCard(grade) {
@@ -92,6 +258,7 @@ async function gradeCurrentCard(grade) {
   if (!ok) {
     state.cloudSync = false;
     state.collectionKey = null;
+    updateSyncKeyButton();
   }
 }
 
@@ -174,6 +341,7 @@ el.prevBtn.addEventListener('click', () => move(-1));
 el.nextBtn.addEventListener('click', () => move(1));
 el.clearBtn.addEventListener('click', clearCurrentCard);
 el.compareBtn.addEventListener('click', toggleComparison);
+el.syncKeyBtn.addEventListener('click', openChangeSyncId);
 
 el.compareSummary.addEventListener('click', e => {
   const chip = e.target.closest('button[data-cmp]');
@@ -194,14 +362,6 @@ el.gridFilters.addEventListener('click', e => {
 });
 
 setupHoverEvents(state, el);
-
-document.addEventListener('keydown', e => {
-  if (state.tab !== 'grade') return;
-  const key = e.key.toUpperCase();
-  if (GRADES.includes(key)) gradeCurrentCard(key);
-  else if (e.key === 'ArrowLeft') move(-1);
-  else if (e.key === 'ArrowRight') move(1);
-});
 
 async function initSetSelectScreen() {
   el.appHeader.style.display = 'none';
@@ -233,6 +393,7 @@ async function init() {
     state.collectionKey = collectionKey;
     state.cloudSync = cloudSync;
     if (!cloudSync) setSyncStatus('Local only');
+    updateSyncKeyButton();
 
     el.status.innerHTML = `<div class="pulse"></div>Fetching set “${requestedSet}” from Scryfall…`;
 
@@ -262,6 +423,7 @@ async function init() {
     if (!result.cloudSync) {
       state.cloudSync = false;
       state.collectionKey = null;
+      updateSyncKeyButton();
     }
 
     const firstUngraded = findNextUngradedIndex(state);
