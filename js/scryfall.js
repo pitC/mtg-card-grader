@@ -96,7 +96,36 @@ export async function findRecentSets(count = 3) {
   return suggestSets(sets, count);
 }
 
+const CARDS_CACHE_PREFIX = 'scryfallCardGraderSetCards:';
+const CARDS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function cardsCacheKey(code) {
+  return `${CARDS_CACHE_PREFIX}${code}`;
+}
+
+export function loadSetCardsCache(code) {
+  if (typeof localStorage === 'undefined') return null;
+  const raw = localStorage.getItem(cardsCacheKey(code));
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    if (!value || !Array.isArray(value.cards) || !value.fetchedAt) return null;
+    if (Date.now() - new Date(value.fetchedAt).getTime() > CARDS_CACHE_TTL_MS) return null;
+    return value.cards;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSetCardsCache(code, cards) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(cardsCacheKey(code), JSON.stringify({ cards, fetchedAt: new Date().toISOString() }));
+}
+
 export async function fetchSetCards(code) {
+  const cached = loadSetCardsCache(code);
+  if (cached) return cached;
+
   let url = `https://api.scryfall.com/cards/search?q=e%3A${code}&order=set&unique=cards`;
   let all = [];
   while (url) {
@@ -105,5 +134,7 @@ export async function fetchSetCards(code) {
     url = page.has_more ? page.next_page : null;
     if (url) await new Promise(r => setTimeout(r, 80));
   }
-  return all.filter(c => cardImageUrl(c));
+  const cards = all.filter(c => cardImageUrl(c));
+  saveSetCardsCache(code, cards);
+  return cards;
 }

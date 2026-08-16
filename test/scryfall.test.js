@@ -12,6 +12,8 @@ import {
   findLatestSet,
   findRecentSets,
   fetchSetCards,
+  loadSetCardsCache,
+  saveSetCardsCache,
 } from '../js/scryfall.js';
 
 const NORMAL_URIS = {
@@ -336,6 +338,7 @@ describe('fetchSetCards', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+    localStorage.clear();
   });
 
   it('collects cards from a single page and filters imageless ones', async () => {
@@ -374,5 +377,79 @@ describe('fetchSetCards', () => {
     const cards = await promise;
     expect(cards.map(c => c.id)).toEqual(['a', 'b']);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('serves the result from cache on subsequent calls', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        has_more: false,
+        data: [{ id: '1', image_uris: { normal: 'a.jpg' } }],
+      }),
+    });
+    const first = await fetchSetCards('dsk');
+    expect(first).toEqual([{ id: '1', image_uris: { normal: 'a.jpg' } }]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    vi.mocked(fetch).mockClear();
+    const second = await fetchSetCards('dsk');
+    expect(second).toEqual(first);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('prompts a refetch once the cache has expired', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        has_more: false,
+        data: [{ id: '1', image_uris: { normal: 'a.jpg' } }],
+      }),
+    });
+    await fetchSetCards('dsk');
+
+    vi.mocked(fetch).mockClear();
+    vi.setSystemTime(new Date('2026-01-02T01:00:00Z'));
+    await fetchSetCards('dsk');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('set cards cache helpers', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns null when nothing is cached', () => {
+    expect(loadSetCardsCache('dsk')).toBeNull();
+  });
+
+  it('round-trips cards through localStorage', () => {
+    const cards = [{ id: '1', image_uris: { normal: 'a.jpg' } }];
+    saveSetCardsCache('dsk', cards);
+    expect(loadSetCardsCache('dsk')).toEqual(cards);
+  });
+
+  it('keys the cache by set code', () => {
+    saveSetCardsCache('dsk', [{ id: '1' }]);
+    expect(loadSetCardsCache('mkm')).toBeNull();
+  });
+
+  it('rejects stale entries older than the TTL', () => {
+    const stale = {
+      cards: [{ id: '1' }],
+      fetchedAt: '2026-01-01T00:00:00Z',
+    };
+    vi.setSystemTime && vi.useFakeTimers({ now: new Date('2026-01-02T01:00:00Z') });
+    localStorage.setItem('scryfallCardGraderSetCards:dsk', JSON.stringify(stale));
+    expect(loadSetCardsCache('dsk')).toBeNull();
+  });
+
+  it('rejects malformed entries', () => {
+    localStorage.setItem('scryfallCardGraderSetCards:dsk', JSON.stringify({ cards: 'nope' }));
+    expect(loadSetCardsCache('dsk')).toBeNull();
+    localStorage.setItem('scryfallCardGraderSetCards:dsk', '{not json');
+    expect(loadSetCardsCache('dsk')).toBeNull();
   });
 });
