@@ -304,7 +304,7 @@ button:focus-visible, a:focus-visible {
   flex-shrink: 0;
   border-radius: 6px;
   padding: 3px;
-  background: var(--panel);
+  background: var(--brass);
 }
 
 .set-item-icon.placeholder { background: var(--brass-dim); }
