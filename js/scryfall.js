@@ -19,8 +19,38 @@ export function getSetCodeFromUrl() {
   return code ? code.trim().toLowerCase() : null;
 }
 
+const SET_CACHE_PREFIX = 'scryfallCardGraderSetMeta:';
+const SET_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function setCacheKey(code) {
+  return `${SET_CACHE_PREFIX}${code}`;
+}
+
+export function loadSetCache(code) {
+  if (typeof localStorage === 'undefined') return null;
+  const raw = localStorage.getItem(setCacheKey(code));
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    if (!value || !value.set || !value.fetchedAt) return null;
+    if (Date.now() - new Date(value.fetchedAt).getTime() > SET_CACHE_TTL_MS) return null;
+    return value.set;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSetCache(code, set) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(setCacheKey(code), JSON.stringify({ set, fetchedAt: new Date().toISOString() }));
+}
+
 export async function fetchSetByCode(code) {
-  return fetchJson(`https://api.scryfall.com/sets/${encodeURIComponent(code)}`);
+  const cached = loadSetCache(code);
+  if (cached) return cached;
+  const set = await fetchJson(`https://api.scryfall.com/sets/${encodeURIComponent(code)}`);
+  saveSetCache(code, set);
+  return set;
 }
 
 export async function fetchAllSets() {

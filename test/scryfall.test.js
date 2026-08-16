@@ -5,6 +5,8 @@ import {
   fetchJson,
   getSetCodeFromUrl,
   fetchSetByCode,
+  loadSetCache,
+  saveSetCache,
   fetchAllSets,
   expansionSets,
   setsInWindow,
@@ -90,6 +92,15 @@ describe('getSetCodeFromUrl', () => {
 });
 
 describe('fetchSetByCode', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.useRealTimers();
+  });
+
   it('URL-encodes the set code and fetches it', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
@@ -100,6 +111,35 @@ describe('fetchSetByCode', () => {
       'https://api.scryfall.com/sets/dsk',
       expect.anything()
     );
+    fetchMock.mockRestore();
+  });
+
+  it('serves the result from cache on subsequent calls', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ code: 'dsk', name: 'Duskmourn' }),
+    });
+    expect(await fetchSetByCode('dsk')).toEqual({ code: 'dsk', name: 'Duskmourn' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockClear();
+    expect(await fetchSetByCode('dsk')).toEqual({ code: 'dsk', name: 'Duskmourn' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
+  });
+
+  it('prompts a refetch once the cache has expired', async () => {
+    vi.useFakeTimers({ now: new Date('2026-01-01T00:00:00Z') });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ code: 'hob' }),
+    });
+    expect(await fetchSetByCode('hob')).toEqual({ code: 'hob' });
+
+    vi.setSystemTime(new Date('2026-01-02T01:00:00Z'));
+    fetchMock.mockClear();
+    await fetchSetByCode('hob');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     fetchMock.mockRestore();
   });
 });
@@ -413,6 +453,44 @@ describe('fetchSetCards', () => {
     vi.setSystemTime(new Date('2026-01-02T01:00:00Z'));
     await fetchSetCards('dsk');
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('set cache helpers', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns null when nothing is cached', () => {
+    expect(loadSetCache('dsk')).toBeNull();
+  });
+
+  it('round-trips sets through localStorage', () => {
+    const set = { code: 'dsk', name: 'Duskmourn' };
+    saveSetCache('dsk', set);
+    expect(loadSetCache('dsk')).toEqual(set);
+  });
+
+  it('keys the cache by set code', () => {
+    saveSetCache('dsk', { code: 'dsk' });
+    expect(loadSetCache('mkm')).toBeNull();
+  });
+
+  it('rejects stale entries older than the TTL', () => {
+    const stale = {
+      set: { code: 'dsk' },
+      fetchedAt: '2026-01-01T00:00:00Z',
+    };
+    vi.setSystemTime && vi.useFakeTimers({ now: new Date('2026-01-02T01:00:00Z') });
+    localStorage.setItem('scryfallCardGraderSetMeta:dsk', JSON.stringify(stale));
+    expect(loadSetCache('dsk')).toBeNull();
+  });
+
+  it('rejects malformed entries', () => {
+    localStorage.setItem('scryfallCardGraderSetMeta:dsk', JSON.stringify({ set: 'nope' }));
+    expect(loadSetCache('dsk')).toBeNull();
+    localStorage.setItem('scryfallCardGraderSetMeta:dsk', '{not json');
+    expect(loadSetCache('dsk')).toBeNull();
   });
 });
 

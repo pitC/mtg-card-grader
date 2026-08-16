@@ -138,7 +138,9 @@ use Firebase Authentication and rules tied to user identities.
 Local grades are stored per set under
 `scryfallCardGraderGrades:<set-code>`. On first opening a set, matching entries
 from the previous flat `scryfallCardGraderGrades` cache are copied into that
-set's cache.
+set's cache. Set metadata and set card lists fetched from Scryfall are cached
+under `scryfallCardGraderSetMeta:<set-code>` and
+`scryfallCardGraderSetCards:<set-code>` with a 24h TTL.
 
 ## Running locally
 
