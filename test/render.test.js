@@ -54,6 +54,17 @@ function makeEl() {
   el.gradeEmpty.style.display = 'none';
   el.hoverCard.style.display = 'none';
 
+  el.compareBtn = document.createElement('button');
+  el.compareBtn.className = 'compare-btn';
+  el.compareBtn.type = 'button';
+  el.compareStatus = document.createElement('span');
+  el.compareStatus.className = 'compare-status';
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar';
+  toolbar.appendChild(el.compareBtn);
+  toolbar.appendChild(el.compareStatus);
+  el.gridView.appendChild(toolbar);
+
   const tabIds = ['grade', 'grid'];
   for (const t of tabIds) {
     const b = document.createElement('button');
@@ -255,13 +266,42 @@ describe('buildGridFilterBar', () => {
     const el = makeEl();
     const state = makeState();
     buildGridFilterBar(state, el);
-    const toggle = el.gridFilters.querySelector('.grid-filter-toggle');
+    const toggle = el.gridView.querySelector('.grid-filter-toggle');
     expect(toggle).toBeTruthy();
     expect(el.gridFilters.classList.contains('collapsed')).toBe(true);
     toggle.click();
     expect(el.gridFilters.classList.contains('collapsed')).toBe(false);
     toggle.click();
     expect(el.gridFilters.classList.contains('collapsed')).toBe(true);
+  });
+
+  it('places the compare and filter buttons in the same toolbar row', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const toolbar = el.gridView.querySelector('.grid-toolbar');
+    const buttons = [...toolbar.children].filter(n => n.tagName === 'BUTTON');
+    expect(buttons.some(b => b.classList.contains('compare-btn'))).toBe(true);
+    expect(buttons.some(b => b.classList.contains('grid-filter-toggle'))).toBe(true);
+  });
+
+  it('keeps the search input always visible above the toolbar, outside the collapsible filter body', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const search = el.gridView.querySelector('.grid-search-row .search-input');
+    expect(search).toBeTruthy();
+    expect(el.gridFilters.contains(search)).toBe(false);
+    expect(el.gridView.querySelector('.grid-search-row').compareDocumentPosition(el.gridView.querySelector('.grid-toolbar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the filter summary outside the collapsible filter body so it stays visible', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    expect(el.gridFilterSummary).toBeTruthy();
+    expect(el.gridFilters.contains(el.gridFilterSummary)).toBe(false);
+    expect(el.gridView.querySelector('.grid-toolbar').contains(el.gridFilterSummary)).toBe(true);
   });
 
   it('renders a filter summary that reflects matching card counts', () => {

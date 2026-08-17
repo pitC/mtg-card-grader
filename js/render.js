@@ -179,34 +179,8 @@ function gridMatches(state, card) {
 }
 
 export function buildGridFilterBar(state, el) {
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'grid-filter-toggle';
-  const caret = document.createElement('span');
-  caret.className = 'grid-filter-caret';
-  caret.textContent = '▾';
-  const toggleLabel = document.createElement('span');
-  toggleLabel.textContent = 'Filters';
-  toggle.appendChild(caret);
-  toggle.appendChild(toggleLabel);
-  toggle.addEventListener('click', () => {
-    state.gridFiltersCollapsed = !(state.gridFiltersCollapsed ?? true);
-    applyGridFilterCollapse(state, el);
-  });
-
-  const body = document.createElement('div');
-  body.className = 'grid-filters-body';
-
-  el.gridFilters.appendChild(toggle);
-  el.gridFilters.appendChild(body);
-
-  const searchGroup = document.createElement('div');
-  searchGroup.className = 'filter-group';
-
-  const searchLabel = document.createElement('span');
-  searchLabel.className = 'filter-label';
-  searchLabel.textContent = 'Search';
-  searchGroup.appendChild(searchLabel);
+  const searchRow = document.createElement('div');
+  searchRow.className = 'grid-search-row';
 
   const searchInput = document.createElement('input');
   searchInput.type = 'text';
@@ -219,9 +193,27 @@ export function buildGridFilterBar(state, el) {
     state.gridFilters.query = searchInput.value.trim();
     renderGridView(state, el);
   });
-  searchGroup.appendChild(searchInput);
+  searchRow.appendChild(searchInput);
   el.gridSearch = searchInput;
-  body.appendChild(searchGroup);
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'grid-filter-toggle';
+  const caret = document.createElement('span');
+  caret.className = 'grid-filter-caret';
+  caret.textContent = '▾';
+  const toggleLabel = document.createElement('span');
+  toggleLabel.textContent = 'Filters';
+  toggle.appendChild(caret);
+  toggle.appendChild(toggleLabel);
+  el.gridFilterToggle = toggle;
+  toggle.addEventListener('click', () => {
+    state.gridFiltersCollapsed = !(state.gridFiltersCollapsed ?? true);
+    applyGridFilterCollapse(state, el);
+  });
+
+  const body = document.createElement('div');
+  body.className = 'grid-filters-body';
 
   const groups = [
     {
@@ -269,9 +261,23 @@ export function buildGridFilterBar(state, el) {
 
   const summary = document.createElement('div');
   summary.className = 'filter-summary';
-  body.appendChild(summary);
   el.gridFilterSummary = summary;
 
+  let toolbar = el.gridView.querySelector('.grid-toolbar');
+  if (!toolbar) {
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
+    el.gridView.appendChild(toolbar);
+  }
+  el.gridView.insertBefore(searchRow, toolbar);
+  toolbar.insertBefore(toggle, toolbar.querySelector('.compare-status'));
+  toolbar.appendChild(summary);
+
+  el.gridFilters.appendChild(body);
+
+  if (state.gridFiltersCollapsed === undefined && mobileQuery) {
+    state.gridFiltersCollapsed = !mobileQuery.matches;
+  }
   if (mobileQuery) {
     mobileQuery.addEventListener('change', e => {
       if (!e.matches) state.gridFiltersCollapsed = false;
@@ -282,7 +288,9 @@ export function buildGridFilterBar(state, el) {
 }
 
 function applyGridFilterCollapse(state, el) {
-  el.gridFilters.classList.toggle('collapsed', state.gridFiltersCollapsed !== false);
+  const collapsed = state.gridFiltersCollapsed !== false;
+  el.gridFilters.classList.toggle('collapsed', collapsed);
+  if (el.gridFilterToggle) el.gridFilterToggle.classList.toggle('collapsed', collapsed);
 }
 
 export function syncGridChips(state, el) {
