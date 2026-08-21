@@ -436,6 +436,7 @@ async function init() {
 
     // Auto-switch to grid if all cards in the set are graded
     if (allCardsGraded(state) && state.tab === 'grade') {
+      el.status.style.display = 'none';
       setTab('grid', state, el);
     } else {
       el.status.style.display = 'none';
