@@ -8,12 +8,11 @@
 | `npm run lint` | Run ESLint on `js/` and `test/` |
 | `make test` | Alias for `npm test` |
 | `make lint` | Alias for `npm run lint` |
-| `python3 -m http.server [8000]` | Serve the app locally (no build needed) |
-| Just open `index.html` in a browser | Works without a server too |
+| `python3 -m http.server [8000]` | Serve the app locally (no build needed); required for CORS (Scryfall/17Lands) |
 
 ## Key conventions & quirks
 
-- **No build step**: The app is plain HTML/JS. Load `index.html` directly or use the Python one-liner above.
+- **No build step**: The app is plain HTML/JS. Run with a local server for CORS support.
 - **ESLint**: `no-unused-vars` ignores args matching `_` prefix. `eqeqeq: 'smart'` allows `== null`. `no-console` allows `error` level logs only. `no-alert` and `no-eval` are errors.
 - **Vitest**: Tests run in jsdom with `url: 'http://localhost:3000/'`. Setup file is `test/setup.js`.
 - **Firestore sync**: Collection keys must be ≥32 random characters. Keys with slashes are invalid (normalize removes them).
