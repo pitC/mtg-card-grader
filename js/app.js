@@ -11,6 +11,7 @@ import {
   resetGridFilters,
   setupHoverEvents,
   findNextUngradedIndex,
+  allCardsGraded,
 } from './render.js';
 
 const state = {
@@ -248,7 +249,11 @@ async function gradeCurrentCard(grade) {
     grade,
     gradedAt: new Date().toISOString(),
   };
-  render(state, el);
+  if (allCardsGraded(state) && state.tab === 'grade') {
+    setTab('grid', state, el);
+  } else {
+    render(state, el);
+  }
   const ok = await persistGrades({
     collectionKey: state.collectionKey,
     setCode: state.setCode,
@@ -429,9 +434,14 @@ async function init() {
     const firstUngraded = findNextUngradedIndex(state);
     if (firstUngraded >= 0) state.index = firstUngraded;
 
-    el.status.style.display = 'none';
-    el.gradeView.style.display = 'block';
-    render(state, el);
+    // Auto-switch to grid if all cards in the set are graded
+    if (allCardsGraded(state) && state.tab === 'grade') {
+      setTab('grid', state, el);
+    } else {
+      el.status.style.display = 'none';
+      el.gradeView.style.display = 'block';
+      render(state, el);
+    }
   } catch (err) {
     el.status.innerHTML = `
       <div>Could not load a set from Scryfall.</div>

@@ -19,6 +19,10 @@ export function findNextUngradedIndex(state) {
   return state.cards.findIndex(c => !state.grades[c.id]);
 }
 
+export function allCardsGraded(state) {
+  return state.cards.length > 0 && state.cards.every(c => !!state.grades[c.id]);
+}
+
 export function updateProgress(state, el) {
   const gradedCount = state.cards.filter(c => state.grades[c.id]).length;
   el.progress.innerHTML = `<strong>${gradedCount}</strong> / ${state.cards.length} graded`;

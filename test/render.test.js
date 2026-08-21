@@ -13,6 +13,7 @@ import {
   resetGridFilters,
   syncGridChips,
   findNextUngradedIndex,
+  allCardsGraded,
 } from '../js/render.js';
 
 function makeChip(group, value) {
@@ -175,6 +176,28 @@ describe('findNextUngradedIndex', () => {
   it('returns 0 when no cards are graded', () => {
     const state = makeState();
     expect(findNextUngradedIndex(state)).toBe(0);
+  });
+});
+
+describe('allCardsGraded', () => {
+  it('is false when no cards are graded', () => {
+    const state = makeState();
+    expect(allCardsGraded(state)).toBe(false);
+  });
+
+  it('is false when not all cards are graded', () => {
+    const state = makeState({ grades: { a: { grade: 'A' } } });
+    expect(allCardsGraded(state)).toBe(false);
+  });
+
+  it('is true when all cards are graded', () => {
+    const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'B' }, c: { grade: 'C' } } });
+    expect(allCardsGraded(state)).toBe(true);
+  });
+
+  it('is false when there are no cards', () => {
+    const state = makeState({ cards: [] });
+    expect(allCardsGraded(state)).toBe(false);
   });
 });
 
