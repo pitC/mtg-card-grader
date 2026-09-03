@@ -176,6 +176,11 @@ async function fetchWithRetry(url, maxRetries = 3) {
 async function fetchApiCards({ setCode, eventType, timePeriod, deck }) {
   const url = proxyUrl(buildTargetUrl({ setCode, eventType, timePeriod, deck }));
   const body = await fetchWithRetry(url);
+  // allorigins.win returns { contents: "..." } where contents is the JSON string
+  if (body && body.contents) {
+    const parsed = JSON.parse(body.contents);
+    return parsed && parsed.data ? parsed.data : [];
+  }
   return body && body.data ? body.data : [];
 }
 
