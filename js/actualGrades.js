@@ -9,7 +9,7 @@ const MIN_GAMES_DRAWN = 500;
 
 // Free CORS proxy that works from any origin (GitHub Pages, etc.).
 // Override via ?proxy= on the URL if needed.
-export const DEFAULT_PROXY = 'https://proxy.cors.sh/?url=';
+export const DEFAULT_PROXY = 'https://proxy.cors.sh/';
 
 // The "all" deck plus the ten two-colour guild decks, mirroring the default
 // deck list in limited-grades.
@@ -144,6 +144,8 @@ export function proxyUrl(targetUrl) {
   const proxy = getConfiguredProxy();
   if (!proxy) return targetUrl;
   if (proxy.includes('{url}')) return proxy.replace('{url}', encodeURIComponent(targetUrl));
+  // proxy.cors.sh expects the full URL as a path segment (no encoding)
+  if (proxy === 'https://proxy.cors.sh/') return proxy + targetUrl;
   return proxy + encodeURIComponent(targetUrl);
 }
 
