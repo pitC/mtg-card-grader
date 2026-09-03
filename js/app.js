@@ -324,7 +324,7 @@ async function toggleComparison() {
     setCompareStatus('');
   } catch (err) {
     console.error('[Card Grader] 17Lands comparison error', err);
-    setCompareStatus('Could not fetch 17Lands data. The default proxy is free for localhost/dev origins; on other hosts set ?proxy=<working proxy>.', true);
+    setCompareStatus('Could not fetch 17Lands data. The default proxy uses a free API key (10k req/month). On other hosts, set ?proxy=<working proxy> or get your own key at corsproxy.io.', true);
   } finally {
     state.compareLoading = false;
     el.compareBtn.disabled = false;

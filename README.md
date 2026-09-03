@@ -60,11 +60,10 @@ differ by two or more grade positions (e.g. your A vs actual C or D). The
 result is cached in `localStorage` for 24 hours per set.
 
 17Lands does not send CORS headers, so the app routes requests through a CORS
-proxy. The default is [corsproxy.io](https://corsproxy.io), which is free for
-local development and dev origins (`localhost`, GitHub.io, CodePen, …); on
-other hosts pass your own proxy with `?proxy=https://proxy.example/` on the
-URL (use a `{url}` placeholder for proxies that need one). `?proxy=direct`
-skips the proxy for hosts that allow it.
+proxy. The default is [corsproxy.io](https://corsproxy.io) with an embedded API key
+(free tier: 10,000 requests/month). To use your own proxy, pass it with
+`?proxy=https://proxy.example/` on the URL (use a `{url}` placeholder for proxies
+that need one). `?proxy=direct` skips the proxy for hosts that allow it.
 
 ## Storage
 

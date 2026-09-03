@@ -7,9 +7,10 @@ import { ACTUAL_GRADE_BUCKETS, GRADE_THRESHOLDS, GRADES } from './constants.js';
 const MIN_GAMES_DRAWN_FOR_INFERENCE = 100;
 const MIN_GAMES_DRAWN = 500;
 
-// Free for local development and dev origins (localhost, GitHub.io, CodePen…);
-// production domains need an API key, hence the ?proxy= override.
-export const DEFAULT_PROXY = 'https://corsproxy.io/?url={url}';
+// corsproxy.io requires an API key for all usage (including free tier).
+// Get yours at https://corsproxy.io (10,000 requests/month free).
+// Override via ?proxy= on the URL if needed.
+export const DEFAULT_PROXY = 'https://corsproxy.io/?key=677dfe1a&url={url}';
 
 // The "all" deck plus the ten two-colour guild decks, mirroring the default
 // deck list in limited-grades.

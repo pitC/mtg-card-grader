@@ -16,7 +16,7 @@
 - **ESLint**: `no-unused-vars` ignores args matching `_` prefix. `eqeqeq: 'smart'` allows `== null`. `no-console` allows `error` level logs only. `no-alert` and `no-eval` are errors.
 - **Vitest**: Tests run in jsdom with `url: 'http://localhost:3000/'`. Setup file is `test/setup.js`.
 - **Firestore sync**: Collection keys must be ≥32 random characters. Keys with slashes are invalid (normalize removes them).
-- **17Lands comparison**: First run fetches and caches to `localStorage`. Default CORS proxy is `corsproxy.io` (free for localhost/dev). On non-dev hosts, set `?proxy=<working proxy>` or use `?proxy=direct` if the host allows CORS.
+- **17Lands comparison**: First run fetches and caches to `localStorage`. Default CORS proxy is `corsproxy.io` with embedded API key (free tier: 10,000 req/month). On non-dev hosts, set `?proxy=<working proxy>` or use `?proxy=direct` if the host allows CORS.
 - **Grading keys**: A–E keys (also ↓/→ navigation). Grade again to cycle.
 
 ## Testing quirks
