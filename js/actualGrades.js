@@ -9,7 +9,7 @@ const MIN_GAMES_DRAWN = 500;
 
 // Free CORS proxy that works from any origin (GitHub Pages, etc.).
 // Override via ?proxy= on the URL if needed.
-export const DEFAULT_PROXY = 'https://api.allorigins.win/raw?url={url}';
+export const DEFAULT_PROXY = 'https://api.allorigins.win/get?url={url}';
 
 // The "all" deck plus the ten two-colour guild decks, mirroring the default
 // deck list in limited-grades.
