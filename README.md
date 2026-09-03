@@ -60,7 +60,7 @@ differ by two or more grade positions (e.g. your A vs actual C or D). The
 result is cached in `localStorage` for 24 hours per set.
 
 17Lands does not send CORS headers, so the app routes requests through a CORS
-proxy. The default is [api.allorigins.win](https://allorigins.win) which works from
+proxy. The default is [proxy.cors.sh](https://cors.sh) which works from
 any origin. To use your own proxy, pass it with `?proxy=https://proxy.example/`
 on the URL (use a `{url}` placeholder for proxies that need one).
 `?proxy=direct` skips the proxy for hosts that allow it.

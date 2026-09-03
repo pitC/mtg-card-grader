@@ -9,7 +9,7 @@ const MIN_GAMES_DRAWN = 500;
 
 // Free CORS proxy that works from any origin (GitHub Pages, etc.).
 // Override via ?proxy= on the URL if needed.
-export const DEFAULT_PROXY = 'https://api.allorigins.win/get?url=';
+export const DEFAULT_PROXY = 'https://proxy.cors.sh/?url=';
 
 // The "all" deck plus the ten two-colour guild decks, mirroring the default
 // deck list in limited-grades.
@@ -159,12 +159,7 @@ async function fetchWithRetry(url, maxRetries = 3) {
     try {
       const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error(`Request to ${url} failed: ${response.status}`);
-      const data = await response.json();
-      // allorigins.win wraps response in { contents: "..." }
-      if (data.contents !== undefined) {
-        return JSON.parse(data.contents);
-      }
-      return data;
+      return response.json();
     } catch (error) {
       retries += 1;
       if (retries > maxRetries) throw error;
