@@ -7,10 +7,9 @@ import { ACTUAL_GRADE_BUCKETS, GRADE_THRESHOLDS, GRADES } from './constants.js';
 const MIN_GAMES_DRAWN_FOR_INFERENCE = 100;
 const MIN_GAMES_DRAWN = 500;
 
-// corsproxy.io requires an API key for all usage (including free tier).
-// Get yours at https://corsproxy.io (10,000 requests/month free).
+// Free CORS proxy that works from any origin (GitHub Pages, etc.).
 // Override via ?proxy= on the URL if needed.
-export const DEFAULT_PROXY = 'https://corsproxy.io/?key=677dfe1a&url={url}';
+export const DEFAULT_PROXY = 'https://api.allorigins.win/raw?url={url}';
 
 // The "all" deck plus the ten two-colour guild decks, mirroring the default
 // deck list in limited-grades.
@@ -160,7 +159,12 @@ async function fetchWithRetry(url, maxRetries = 3) {
     try {
       const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error(`Request to ${url} failed: ${response.status}`);
-      return response.json();
+      const data = await response.json();
+      // allorigins.win wraps response in { contents: "..." }
+      if (data.contents !== undefined) {
+        return JSON.parse(data.contents);
+      }
+      return data;
     } catch (error) {
       retries += 1;
       if (retries > maxRetries) throw error;
