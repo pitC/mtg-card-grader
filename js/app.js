@@ -324,7 +324,7 @@ async function toggleComparison() {
     setCompareStatus('');
   } catch (err) {
     console.error('[Card Grader] 17Lands comparison error', err);
-    setCompareStatus('Could not fetch 17Lands data. The default proxy is free for any origin; on other hosts, set ?proxy=<working proxy>.', true);
+    setCompareStatus(`Error: ${err.message || err}. Proxy: ${proxyUrl('https://test.com')}`, true);
   } finally {
     state.compareLoading = false;
     el.compareBtn.disabled = false;
