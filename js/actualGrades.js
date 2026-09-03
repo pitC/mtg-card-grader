@@ -159,7 +159,12 @@ async function fetchWithRetry(url, maxRetries = 3) {
     try {
       const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error(`Request to ${url} failed: ${response.status}`);
-      return response.json();
+      const data = await response.json();
+      // allorigins.win wraps response in { contents: "..." }
+      if (data.contents !== undefined) {
+        return JSON.parse(data.contents);
+      }
+      return data;
     } catch (error) {
       retries += 1;
       if (retries > maxRetries) throw error;
