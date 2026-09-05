@@ -407,10 +407,22 @@ export function setTab(tab, state, el, opts = {}) {
     state.index = 0;
   }
   if (opts.index !== undefined) state.index = opts.index;
+  
+  // Save scroll position when leaving grid view
+  if (state.tab === 'grid' && tab !== 'grid') {
+    state.gridScrollTop = el.gridView.scrollTop;
+  }
+  
   state.tab = tab;
   [...el.tabGroup.children].forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
   el.gridView.style.display = tab === 'grid' ? 'block' : 'none';
+  
+  // Restore scroll position when returning to grid view
+  if (tab === 'grid' && state.gridScrollTop) {
+    el.gridView.scrollTop = state.gridScrollTop;
+  }
+  
   render(state, el);
 }
 

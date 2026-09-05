@@ -25,6 +25,7 @@ const state = {
   cloudSync: false,
   gridFilters: { grades: [], colors: [], rarities: [], query: '' },
   collapsedLanes: new Set(),
+  gridScrollTop: 0,
   actualGrades: null,
   compareActive: false,
   compareLoading: false,
