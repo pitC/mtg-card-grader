@@ -2,7 +2,7 @@ import { ensureSyncConfig, fetchAllGrades, persistGrades, normalizeCollectionKey
 import { loadLocalCache, loadStoredCollectionKeys, removeStoredCollectionKey, saveStoredCollectionKey, markFirestoreSkipped } from './storage.js';
 import { fetchSetByCode, fetchSetCards, getSetCodeFromUrl } from './scryfall.js';
 import { initSetSelect } from './setSelect.js';
-import { buildActualGrades, loadActualCache, saveActualCache } from './actualGrades.js';
+import { buildActualGrades, loadActualCache, saveActualCache, proxyUrl } from './actualGrades.js';
 import {
   render,
   setTab,
@@ -45,6 +45,7 @@ const el = {
   gradeView: document.getElementById('grade-view'),
   gradeContent: document.getElementById('grade-content'),
   gradeEmpty: document.getElementById('grade-empty'),
+  cardWrap: document.getElementById('card-wrap'),
   gridView: document.getElementById('grid-view'),
   setName: document.getElementById('set-name'),
   setMeta: document.getElementById('set-meta'),
@@ -347,6 +348,7 @@ el.nextBtn.addEventListener('click', () => move(1));
 el.clearBtn.addEventListener('click', clearCurrentCard);
 el.compareBtn.addEventListener('click', toggleComparison);
 el.syncKeyBtn.addEventListener('click', openChangeSyncId);
+el.cardWrap.addEventListener('click', () => setTab('grid', state, el));
 
 el.compareSummary.addEventListener('click', e => {
   const chip = e.target.closest('button[data-cmp]');
