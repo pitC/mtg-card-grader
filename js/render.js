@@ -418,12 +418,12 @@ export function setTab(tab, state, el, opts = {}) {
   el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
   el.gridView.style.display = tab === 'grid' ? 'block' : 'none';
   
-  // Restore scroll position when returning to grid view
+  render(state, el);
+  
+  // Restore scroll position after render when returning to grid view
   if (tab === 'grid' && state.gridScrollTop) {
     el.gridView.scrollTop = state.gridScrollTop;
   }
-  
-  render(state, el);
 }
 
 export function toggleGridChip(state, el, chip) {
