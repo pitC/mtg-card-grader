@@ -350,6 +350,12 @@ el.clearBtn.addEventListener('click', clearCurrentCard);
 el.compareBtn.addEventListener('click', toggleComparison);
 el.syncKeyBtn.addEventListener('click', openChangeSyncId);
 el.cardWrap.addEventListener('click', () => setTab('grid', state, el));
+el.cardWrap.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    setTab('grid', state, el);
+  }
+});
 
 el.compareSummary.addEventListener('click', e => {
   const chip = e.target.closest('button[data-cmp]');
@@ -370,6 +376,22 @@ el.gridFilters.addEventListener('click', e => {
 });
 
 setupHoverEvents(state, el);
+
+// Keep grid scroll position up to date while in grid view (covers window and element scrolling)
+if (typeof window !== 'undefined') {
+  window.addEventListener('scroll', () => {
+    if (state.tab === 'grid') {
+      const y = window.scrollY ?? window.pageYOffset ?? document.documentElement?.scrollTop ?? 0;
+      if (y) state.gridScrollTop = y;
+      else if (el.gridView?.scrollTop) state.gridScrollTop = el.gridView.scrollTop;
+    }
+  }, { passive: true });
+}
+if (el.gridView) {
+  el.gridView.addEventListener('scroll', () => {
+    if (state.tab === 'grid' && el.gridView.scrollTop) state.gridScrollTop = el.gridView.scrollTop;
+  }, { passive: true });
+}
 
 async function initSetSelectScreen() {
   el.appHeader.style.display = 'none';

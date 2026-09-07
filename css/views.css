@@ -15,6 +15,16 @@
   position: relative;
   width: min(300px, 70vw);
   filter: drop-shadow(0 20px 40px rgba(0,0,0,0.55));
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.card-wrap:hover {
+  transform: scale(1.02);
+}
+
+.card-wrap:active {
+  transform: scale(0.98);
 }
 
 .card-wrap img {

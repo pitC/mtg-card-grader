@@ -408,21 +408,52 @@ export function setTab(tab, state, el, opts = {}) {
   }
   if (opts.index !== undefined) state.index = opts.index;
   
-  // Save scroll position when leaving grid view
+  // Save scroll position when leaving grid view (window scroll is the actual scroller; fallback to element)
   if (state.tab === 'grid' && tab !== 'grid') {
-    state.gridScrollTop = el.gridView.scrollTop;
+    const winY = typeof window !== 'undefined' ? (window.scrollY ?? window.pageYOffset ?? 0) : 0;
+    const docElY = typeof document !== 'undefined' ? (document.documentElement?.scrollTop ?? 0) : 0;
+    const bodyY = typeof document !== 'undefined' ? (document.body?.scrollTop ?? 0) : 0;
+    const elY = el.gridView?.scrollTop ?? 0;
+    const candidate = Math.max(winY, docElY, bodyY, elY);
+    // Don't overwrite a previously captured scroll (from scroll listener) with 0
+    if (candidate) state.gridScrollTop = candidate;
   }
-  
+
   state.tab = tab;
   [...el.tabGroup.children].forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   el.gradeView.style.display = tab === 'grade' ? 'block' : 'none';
   el.gridView.style.display = tab === 'grid' ? 'block' : 'none';
-  
+
   render(state, el);
-  
+
   // Restore scroll position after render when returning to grid view
   if (tab === 'grid' && state.gridScrollTop) {
-    el.gridView.scrollTop = state.gridScrollTop;
+    const top = state.gridScrollTop;
+    const doRestore = () => {
+      if (el.gridView) el.gridView.scrollTop = top;
+      if (typeof document !== 'undefined') {
+        if (document.documentElement) document.documentElement.scrollTop = top;
+        if (document.body) document.body.scrollTop = top;
+      }
+      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+        try {
+          window.scrollTo(0, top);
+        } catch (e) {
+          void e;
+        }
+      }
+    };
+    // Render is synchronous but layout/paint may be pending; restore on next frame as well
+    doRestore();
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        doRestore();
+        // Fallback double-rAF for browsers that need an extra frame after grid lanes are painted
+        window.requestAnimationFrame(doRestore);
+      });
+    } else if (typeof setTimeout === 'function') {
+      setTimeout(doRestore, 0);
+    }
   }
 }
 
