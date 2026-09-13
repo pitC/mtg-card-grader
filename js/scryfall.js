@@ -1,3 +1,5 @@
+import { safeSetItem } from './cache.js';
+
 export function cardImageUrl(card, size) {
   size = size || 'normal';
   if (card.image_uris) return card.image_uris[size] || card.image_uris.normal || '';
@@ -33,7 +35,10 @@ export function loadSetCache(code) {
   try {
     const value = JSON.parse(raw);
     if (!value || !value.set || !value.fetchedAt) return null;
-    if (Date.now() - new Date(value.fetchedAt).getTime() > SET_CACHE_TTL_MS) return null;
+    if (Date.now() - new Date(value.fetchedAt).getTime() > SET_CACHE_TTL_MS) {
+      localStorage.removeItem(setCacheKey(code));
+      return null;
+    }
     return value.set;
   } catch {
     return null;
@@ -42,7 +47,7 @@ export function loadSetCache(code) {
 
 export function saveSetCache(code, set) {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(setCacheKey(code), JSON.stringify({ set, fetchedAt: new Date().toISOString() }));
+  safeSetItem(setCacheKey(code), JSON.stringify({ set, fetchedAt: new Date().toISOString() }));
 }
 
 export async function fetchSetByCode(code) {
@@ -140,7 +145,10 @@ export function loadSetCardsCache(code) {
   try {
     const value = JSON.parse(raw);
     if (!value || !Array.isArray(value.cards) || !value.fetchedAt) return null;
-    if (Date.now() - new Date(value.fetchedAt).getTime() > CARDS_CACHE_TTL_MS) return null;
+    if (Date.now() - new Date(value.fetchedAt).getTime() > CARDS_CACHE_TTL_MS) {
+      localStorage.removeItem(cardsCacheKey(code));
+      return null;
+    }
     return value.cards;
   } catch {
     return null;
@@ -149,7 +157,7 @@ export function loadSetCardsCache(code) {
 
 export function saveSetCardsCache(code, cards) {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(cardsCacheKey(code), JSON.stringify({ cards, fetchedAt: new Date().toISOString() }));
+  safeSetItem(cardsCacheKey(code), JSON.stringify({ cards, fetchedAt: new Date().toISOString() }));
 }
 
 export async function fetchSetCards(code) {

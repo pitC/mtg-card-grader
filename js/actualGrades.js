@@ -1,4 +1,5 @@
 import { ACTUAL_GRADE_BUCKETS, GRADE_THRESHOLDS, GRADES } from './constants.js';
+import { safeSetItem } from './cache.js';
 
 // Based on the grading mechanism in limited-grades/src/lib/CardGrader.ts:
 // winrates are relative within each deck (including "all"), fitted to a
@@ -222,7 +223,10 @@ export function loadActualCache(setCode) {
   try {
     const value = JSON.parse(raw);
     if (!value || typeof value !== 'object' || !value.fetchedAt) return null;
-    if (Date.now() - new Date(value.fetchedAt).getTime() > CACHE_TTL_MS) return null;
+    if (Date.now() - new Date(value.fetchedAt).getTime() > CACHE_TTL_MS) {
+      localStorage.removeItem(cacheKey(setCode));
+      return null;
+    }
     return value;
   } catch {
     return null;
@@ -231,7 +235,7 @@ export function loadActualCache(setCode) {
 
 export function saveActualCache(setCode, result) {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(cacheKey(setCode), JSON.stringify(result));
+  safeSetItem(cacheKey(setCode), JSON.stringify(result));
 }
 
 // Signed grade difference between the own A-E grade and the bucketed actual

@@ -1,3 +1,5 @@
+import { safeSetItem } from './cache.js';
+
 export const COLLECTION_KEY = 'scryfallCardGraderFirestoreCollection';
 export const COLLECTION_KEYS_KEY = 'scryfallCardGraderFirestoreCollections';
 export const FIRESTORE_SKIPPED_KEY = 'scryfallCardGraderFirestoreSkipped';
@@ -31,13 +33,13 @@ export function loadLocalCache(setCode, cards) {
   const migrated = Object.fromEntries(
     Object.entries(legacyGrades).filter(([cardId]) => cardIds.has(cardId))
   );
-  localStorage.setItem(localCacheKey(setCode), JSON.stringify(migrated));
+  safeSetItem(localCacheKey(setCode), JSON.stringify(migrated));
   return migrated;
 }
 
 export function saveLocalCache(setCode, grades) {
   if (!setCode) return;
-  localStorage.setItem(localCacheKey(setCode), JSON.stringify(grades));
+  safeSetItem(localCacheKey(setCode), JSON.stringify(grades));
 }
 
 export function loadStoredCollectionKey() {
@@ -60,18 +62,18 @@ export function loadStoredCollectionKeys() {
 export function saveStoredCollectionKey(collectionKey) {
   const keys = loadStoredCollectionKeys().filter(k => k !== collectionKey);
   keys.unshift(collectionKey);
-  localStorage.setItem(COLLECTION_KEYS_KEY, JSON.stringify(keys));
-  localStorage.setItem(COLLECTION_KEY, collectionKey);
+  safeSetItem(COLLECTION_KEYS_KEY, JSON.stringify(keys));
+  safeSetItem(COLLECTION_KEY, collectionKey);
   localStorage.removeItem(FIRESTORE_SKIPPED_KEY);
 }
 
 export function removeStoredCollectionKey(collectionKey) {
   const keys = loadStoredCollectionKeys().filter(k => k !== collectionKey);
-  localStorage.setItem(COLLECTION_KEYS_KEY, JSON.stringify(keys));
+  safeSetItem(COLLECTION_KEYS_KEY, JSON.stringify(keys));
 }
 
 export function markFirestoreSkipped() {
-  localStorage.setItem(FIRESTORE_SKIPPED_KEY, '1');
+  safeSetItem(FIRESTORE_SKIPPED_KEY, '1');
   localStorage.removeItem(COLLECTION_KEY);
 }
 
