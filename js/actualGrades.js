@@ -10,7 +10,7 @@ const MIN_GAMES_DRAWN = 500;
 
 // Free CORS proxy that works from any origin (GitHub Pages, etc.).
 // Override via ?proxy= on the URL if needed.
-export const DEFAULT_PROXY = 'https://proxy.cors.sh/';
+export const DEFAULT_PROXY = 'https://crossorigin.me/';
 
 // The "all" deck plus the ten two-colour guild decks, mirroring the default
 // deck list in limited-grades.
@@ -130,7 +130,7 @@ function sleep(ms) {
 
 // Route 17Lands requests through a CORS proxy (or directly with
 // ?proxy=direct) because 17Lands does not send CORS headers. The default
-// corsproxy.io works for localhost and dev origins; production origins can
+// crossorigin.me works from any origin; production origins can
 // pass their own proxy (or a {url} placeholder pattern) via ?proxy=.
 export function getConfiguredProxy() {
   if (typeof location === 'undefined') return DEFAULT_PROXY;
@@ -145,8 +145,8 @@ export function proxyUrl(targetUrl) {
   const proxy = getConfiguredProxy();
   if (!proxy) return targetUrl;
   if (proxy.includes('{url}')) return proxy.replace('{url}', encodeURIComponent(targetUrl));
-  // proxy.cors.sh expects the full URL as a path segment (no encoding)
-  if (proxy === 'https://proxy.cors.sh/') return proxy + targetUrl;
+  // crossorigin.me and proxy.cors.sh expect the full URL as a path segment (no encoding)
+  if (proxy === 'https://proxy.cors.sh/' || proxy === 'https://crossorigin.me/') return proxy + targetUrl;
   return proxy + encodeURIComponent(targetUrl);
 }
 
