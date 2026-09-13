@@ -12,6 +12,7 @@
 // Firestore rules for actualGrades must allow writes (see README).
 
 import admin from 'firebase-admin';
+import { execSync } from 'child_process';
 
 const FIREBASE_PROJECT_ID = 'mtg-card-grader';
 
@@ -201,6 +202,46 @@ async function buildActualGradesForNode({ setCode, eventType = 'PremierDraft', t
   };
 }
 
+function getAccessTokenFromGcloud() {
+  try {
+    const token = execSync('gcloud auth print-access-token', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (token) return token;
+  } catch {}
+  try {
+    const token = execSync('gcloud auth application-default print-access-token', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (token) return token;
+  } catch {}
+  return null;
+}
+
+async function writeViaRest(docId, payload) {
+  const token = getAccessTokenFromGcloud();
+  if (!token) {
+    throw new Error('No gcloud access token found. Run `gcloud auth login` and `gcloud auth application-default login` or `firebase login`.');
+  }
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/actualGrades/${docId}`;
+  const body = {
+    fields: {
+      byNameJson: { stringValue: payload.byNameJson },
+      decks: { arrayValue: { values: payload.decks.map(v => ({ stringValue: v })) } },
+      fetchedAt: { stringValue: payload.fetchedAt },
+      setCode: { stringValue: payload.setCode },
+    },
+  };
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Firestore REST write failed ${res.status}: ${text}`);
+  }
+}
+
 async function syncOneSet(setCode, db) {
   const result = await buildActualGradesForNode({ setCode });
   if (!Object.keys(result.byName).length) {
@@ -218,7 +259,16 @@ async function syncOneSet(setCode, db) {
 
   const docId = setCode.toLowerCase();
   console.log(`[sync-17lands] Writing actualGrades/${docId} (${Object.keys(result.byName).length} cards, fetchedAt ${result.fetchedAt})`);
-  await db.collection('actualGrades').doc(docId).set(payload);
+  try {
+    await db.collection('actualGrades').doc(docId).set(payload);
+  } catch (e) {
+    if (e.message && e.message.includes('Could not load the default credentials')) {
+      console.warn('[sync-17lands] Admin SDK ADC not found, falling back to REST via `gcloud auth print-access-token`...');
+      await writeViaRest(docId, payload);
+    } else {
+      throw e;
+    }
+  }
   console.log(`[sync-17lands] Done ${docId}`);
 }
 
