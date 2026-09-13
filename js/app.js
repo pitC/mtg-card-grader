@@ -1,8 +1,8 @@
-import { ensureSyncConfig, fetchAllGrades, persistGrades, normalizeCollectionKey, fetchCollectionMetadata } from './firestore.js';
+import { ensureSyncConfig, fetchAllGrades, persistGrades, normalizeCollectionKey, fetchCollectionMetadata, fetchActualGrades } from './firestore.js';
 import { loadLocalCache, loadStoredCollectionKeys, removeStoredCollectionKey, saveStoredCollectionKey, markFirestoreSkipped } from './storage.js';
 import { fetchSetByCode, fetchSetCards, getSetCodeFromUrl } from './scryfall.js';
 import { initSetSelect } from './setSelect.js';
-import { buildActualGrades, loadActualCache, saveActualCache, proxyUrl } from './actualGrades.js';
+import { loadActualCache, saveActualCache } from './actualGrades.js';
 import {
   render,
   setTab,
@@ -316,17 +316,19 @@ async function toggleComparison() {
   try {
     let result = state.actualGrades || loadActualCache(state.setCode);
     if (!result) {
-      result = await buildActualGrades({ setCode: state.setCode });
-      saveActualCache(state.setCode, result);
+      result = await fetchActualGrades(state.setCode);
+      if (result) saveActualCache(state.setCode, result);
     }
-    if (!Object.keys(result.byName).length) throw new Error('No 17Lands data found for this set');
+    if (!result || !Object.keys(result.byName).length) {
+      throw new Error(`No 17Lands data for this set. Run \`make sync-17lands SET=${state.setCode}\` locally to populate Firestore.`);
+    }
     state.actualGrades = result;
     state.compareActive = true;
     el.compareBtn.classList.add('active');
     setCompareStatus('');
   } catch (err) {
     console.error('[Card Grader] 17Lands comparison error', err);
-    setCompareStatus(`Error: ${err.message || err}. Proxy: ${proxyUrl('https://test.com')}`, true);
+    setCompareStatus(`Error: ${err.message || err}`, true);
   } finally {
     state.compareLoading = false;
     el.compareBtn.disabled = false;

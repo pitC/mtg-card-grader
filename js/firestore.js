@@ -104,6 +104,37 @@ export async function fetchAllGrades({ collectionKey, setCode, localGrades, onSt
   }
 }
 
+// 17Lands actual grades cached in Firestore (populated via `make sync-17lands SET=<code>`).
+// Collection `actualGrades`, doc id = lowercase set code, fields: byNameJson (string), decks, fetchedAt
+export async function fetchActualGrades(setCode) {
+  if (!setCode) return null;
+  try {
+    const { db, doc, getDoc } = await getFirestoreApi();
+    const snap = await getDoc(doc(db, 'actualGrades', setCode.toLowerCase()));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    let byName = data.byName;
+    if (typeof data.byNameJson === 'string') {
+      try {
+        byName = JSON.parse(data.byNameJson);
+      } catch {
+        byName = null;
+      }
+    } else if (Array.isArray(data.byNameEntries)) {
+      byName = Object.fromEntries(data.byNameEntries.map(e => [e.cardKey, e.stats]));
+    }
+    if (!byName || typeof byName !== 'object' || Array.isArray(byName)) return null;
+    return {
+      byName,
+      decks: Array.isArray(data.decks) ? data.decks : [],
+      fetchedAt: data.fetchedAt || new Date().toISOString(),
+    };
+  } catch (e) {
+    console.error('[Card Grader] Firestore actualGrades fetch error', e);
+    return null;
+  }
+}
+
 // Each Firestore document contains the complete grade map for one set.
 export async function persistGrades({ collectionKey, setCode, grades, onStatus }) {
   saveLocalCache(setCode, grades);

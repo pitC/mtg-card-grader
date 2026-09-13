@@ -59,11 +59,13 @@ to filter the grid by that comparison. Strong over/under select cards that
 differ by two or more grade positions (e.g. your A vs actual C or D). The
 result is cached in `localStorage` for 24 hours per set.
 
-17Lands does not send CORS headers, so the app routes requests through a CORS
-proxy. The default is [proxy.cors.sh](https://cors.sh) which works from
-any origin. To use your own proxy, pass it with `?proxy=https://proxy.example/`
-on the URL (use a `{url}` placeholder for proxies that need one).
-`?proxy=direct` skips the proxy for hosts that allow it.
+17Lands data is pre-fetched locally and stored in Firestore (collection
+`actualGrades`) via `make sync-17lands SET=<code>` - no CORS proxy is needed
+in the browser. The app's **Compare** button reads from Firestore
+(`actualGrades/{setCode}`) and falls back to the 24h `localStorage` cache.
+Legacy direct 17Lands fetching via CORS proxy is still available in
+`actualGrades.js` but not used by the UI; to use your own proxy, pass it
+with `?proxy=https://proxy.example/` (use a `{url}` placeholder).
 
 ## Storage
 
@@ -122,6 +124,14 @@ service cloud.firestore {
                             && setCode.matches('^[a-z0-9]{3}$');
       allow list, delete: if false;
     }
+    // 17Lands actual grades cache populated via `make sync-17lands SET=<code>`
+    // Readable by anyone for Compare mode, writable by anyone (or restrict to
+    // authenticated/allowlist as needed).
+    match /actualGrades/{setCode} {
+      allow get: if setCode.matches('^[a-z0-9]{3,}$');
+      allow create, update: if setCode.matches('^[a-z0-9]{3,}$');
+      allow list, delete: if false;
+    }
   }
 }
 ```
@@ -149,6 +159,24 @@ HTTP instead, run any static file server in this directory:
 ```sh
 python3 -m http.server 8000
 ```
+
+### Syncing 17Lands data
+
+Compare mode no longer fetches 17Lands through a CORS proxy in the browser.
+Instead, run locally:
+
+```sh
+npm install
+make sync-17lands SET=hob          # single set
+make sync-17lands SET=hob,fin,eoq  # multiple sets
+# or: node scripts/sync-17lands.mjs hob
+```
+
+This fetches `https://www.17lands.com/api/card_data` for all 11 decks (no proxy
+needed in Node), computes grades via the same `actualGrades.js` logic, and
+writes to Firestore `actualGrades/{setCode}` as `{ byNameJson, decks, fetchedAt }`.
+Requires Firestore rules for `actualGrades` (see above) and `npm install firebase`
+(uses `js/firebase.js` config).
 
 ## Development
 

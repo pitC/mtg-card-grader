@@ -18,6 +18,9 @@
     "url": "https://github.com/pitC/mtg-card-grader/issues"
   },
   "homepage": "https://github.com/pitC/mtg-card-grader#readme",
+  "dependencies": {
+    "firebase": "12.17.1"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.1",
