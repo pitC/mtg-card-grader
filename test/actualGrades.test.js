@@ -215,8 +215,9 @@ describe('proxy configuration', () => {
   });
 
   it('substitutes {url} placeholders with an encoded target', () => {
+    vi.stubGlobal('location', { search: '?proxy=https://example.com/proxy?url={url}' });
     const out = proxyUrl('https://www.example.com/a?b=1&c=2');
-    expect(out).toBe(`${DEFAULT_PROXY.replace('{url}', encodeURIComponent('https://www.example.com/a?b=1&c=2'))}`);
+    expect(out).toBe(`https://example.com/proxy?url=${encodeURIComponent('https://www.example.com/a?b=1&c=2')}`);
   });
 
   it('appends an encoded target when no placeholder is used', () => {
