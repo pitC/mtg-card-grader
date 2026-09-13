@@ -5,20 +5,15 @@
 //        make sync-17lands SET=hob
 //        make sync-17lands SET=hob,fin,eoq
 // Writes to Firestore collection `actualGrades` doc id = lowercase set code.
-// Requires Firebase config (same as js/firebase.js) and Firestore rules
-// allowing actualGrades reads/writes (see README).
+// Requires locally authed Firebase CLI:
+//   firebase login
+//   gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase,https://www.googleapis.com/auth/datastore
+// Or set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON.
+// Firestore rules for actualGrades must allow writes (see README).
 
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import admin from 'firebase-admin';
 
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyAUReVkoQ1fSSztd8cQXHmtyMNFUQS2hk0',
-  authDomain: 'mtg-card-grader.firebaseapp.com',
-  projectId: 'mtg-card-grader',
-  storageBucket: 'mtg-card-grader.firebasestorage.app',
-  messagingSenderId: '479390474930',
-  appId: '1:479390474930:web:297c0047064abdc1031fab',
-};
+const FIREBASE_PROJECT_ID = 'mtg-card-grader';
 
 // Copied from js/constants.js / js/actualGrades.js to avoid ESM/CJS interop issues
 const GRADE_THRESHOLDS = [
@@ -223,8 +218,27 @@ async function syncOneSet(setCode, db) {
 
   const docId = setCode.toLowerCase();
   console.log(`[sync-17lands] Writing actualGrades/${docId} (${Object.keys(result.byName).length} cards, fetchedAt ${result.fetchedAt})`);
-  await setDoc(doc(db, 'actualGrades', docId), payload);
+  await db.collection('actualGrades').doc(docId).set(payload);
   console.log(`[sync-17lands] Done ${docId}`);
+}
+
+function getDb() {
+  if (admin.apps.length) return admin.firestore();
+  try {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: FIREBASE_PROJECT_ID,
+    });
+  } catch (e) {
+    console.error('[sync-17lands] Failed to initialize Firebase Admin SDK.');
+    console.error('  Ensure you are logged in via Firebase CLI and ADC is set:');
+    console.error('    firebase login');
+    console.error('    gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase,https://www.googleapis.com/auth/datastore');
+    console.error('  Or set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON.');
+    console.error(`  Original error: ${e.message}`);
+    throw e;
+  }
+  return admin.firestore();
 }
 
 async function main() {
@@ -240,8 +254,7 @@ async function main() {
   console.log(`[sync-17lands] Sets: ${sets.join(', ')}${dryRun ? ' (dry-run)' : ''}`);
   let db = null;
   if (!dryRun) {
-    const app = initializeApp(FIREBASE_CONFIG);
-    db = getFirestore(app);
+    db = getDb();
   }
 
   for (const setCode of sets) {
@@ -256,6 +269,12 @@ async function main() {
         await syncOneSet(setCode, db);
       }
     } catch (e) {
+      if (e.message && e.message.includes('Could not load the default credentials')) {
+        console.error('[sync-17lands] Firestore auth failed - no Application Default Credentials found.');
+        console.error('  Run:');
+        console.error('    gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase,https://www.googleapis.com/auth/datastore');
+        console.error('  Or: gcloud auth login  &&  firebase login  &&  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json');
+      }
       console.error(`[sync-17lands] Failed for ${setCode}:`, e);
       process.exitCode = 1;
     }

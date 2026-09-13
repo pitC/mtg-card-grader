@@ -175,8 +175,14 @@ make sync-17lands SET=hob,fin,eoq  # multiple sets
 This fetches `https://www.17lands.com/api/card_data` for all 11 decks (no proxy
 needed in Node), computes grades via the same `actualGrades.js` logic, and
 writes to Firestore `actualGrades/{setCode}` as `{ byNameJson, decks, fetchedAt }`.
-Requires Firestore rules for `actualGrades` (see above) and `npm install firebase`
-(uses `js/firebase.js` config).
+Requires Firestore rules for `actualGrades` (see above) and locally authed CLI:
+
+```sh
+firebase login
+gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/firebase,https://www.googleapis.com/auth/datastore
+# or: export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+npm install   # installs firebase-admin
+```
 
 ## Development
 
