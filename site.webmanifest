@@ -1,8 +1,8 @@
 {
   "name": "Card Grader",
   "short_name": "Card Grader",
-  "start_url": "/mtg-card-grader/",
-  "scope": "/mtg-card-grader/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#12161a",
   "theme_color": "#12161a",
