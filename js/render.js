@@ -9,9 +9,40 @@ export function gridFiltersActive(state) {
 }
 
 export function applyFilter(state) {
-  state.filtered = gridFiltersActive(state)
+  const base = gridFiltersActive(state)
     ? state.cards.filter(card => gridMatches(state, card))
     : state.cards;
+  if (state.tab === 'grade' && !gridFiltersActive(state)) {
+    // In grade mode with no grid filters active, only cycle through ungraded cards.
+    // Preserve a forced card (e.g. a graded card opened from the grid) even though it is graded.
+    if (state._forcedGradeCardId) {
+      const forced = state.cards.find(card => card.id === state._forcedGradeCardId);
+      if (forced) {
+        const ungraded = base.filter(card => !state.grades[card.id]);
+        if (!ungraded.includes(forced)) {
+          const baseIdx = base.indexOf(forced);
+          let insertPos = ungraded.findIndex(card => base.indexOf(card) > baseIdx);
+          if (insertPos === -1) insertPos = ungraded.length;
+          ungraded.splice(insertPos, 0, forced);
+          state.filtered = ungraded;
+          // Keep the forced card selected; will be cleared on next navigation
+          if (state.index < 0 || state.index >= state.filtered.length || state.filtered[state.index]?.id !== state._forcedGradeCardId) {
+            state.index = insertPos;
+          }
+        } else {
+          state.filtered = ungraded;
+          const forcedIdx = state.filtered.indexOf(forced);
+          if (forcedIdx !== -1) state.index = forcedIdx;
+        }
+      } else {
+        state.filtered = base.filter(card => !state.grades[card.id]);
+      }
+    } else {
+      state.filtered = base.filter(card => !state.grades[card.id]);
+    }
+  } else {
+    state.filtered = base;
+  }
   if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
 }
 
@@ -385,7 +416,28 @@ export function renderGridView(state, el) {
         }
 
         btn.addEventListener('click', () => {
-          setTab('grade', state, el, { index: filtered.indexOf(card) });
+          // When grade mode filters to ungraded (no grid filters), a graded card would be excluded.
+          // Preserve the clicked card via a forced id so it can be shown for editing.
+          const willFilterUngraded = !gridFiltersActive(state);
+          const isGraded = !!state.grades[card.id];
+          if (willFilterUngraded && isGraded) {
+            state._forcedGradeCardId = card.id;
+            setTab('grade', state, el);
+          } else {
+            // For ungraded cards or when grid filters are active, map to the grade-filtered index
+            const base = gridFiltersActive(state)
+              ? state.cards.filter(c => gridMatches(state, c))
+              : state.cards;
+            const gradeFiltered = willFilterUngraded
+              ? base.filter(c => !state.grades[c.id])
+              : base;
+            const gradeIdx = gradeFiltered.indexOf(card);
+            if (gradeIdx !== -1) {
+              setTab('grade', state, el, { index: gradeIdx });
+            } else {
+              setTab('grade', state, el, { index: filtered.indexOf(card) });
+            }
+          }
         });
         track.appendChild(btn);
       });
@@ -403,10 +455,14 @@ export function render(state, el) {
 }
 
 export function setTab(tab, state, el, opts = {}) {
-  if (tab === 'grade' && state.tab !== 'grade' && gridFiltersActive(state) && opts.index === undefined) {
+  if (tab === 'grade' && state.tab !== 'grade' && opts.index === undefined && !state._forcedGradeCardId) {
     state.index = 0;
   }
   if (opts.index !== undefined) state.index = opts.index;
+  // Clear forced card when leaving grade view or when explicitly navigating within grade view
+  if (tab !== 'grade' && state._forcedGradeCardId) {
+    delete state._forcedGradeCardId;
+  }
   
   // Save scroll position when leaving grid view (window scroll is the actual scroller; fallback to element)
   if (state.tab === 'grid' && tab !== 'grid') {

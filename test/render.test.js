@@ -97,10 +97,22 @@ function makeState(overrides = {}) {
 }
 
 describe('applyFilter', () => {
-  it('keeps all cards when no grid filters are active', () => {
-    const state = makeState({ grades: { a: { grade: 'A' } } });
+  it('keeps all cards when no grid filters are active in grid mode', () => {
+    const state = makeState({ tab: 'grid', grades: { a: { grade: 'A' } } });
     applyFilter(state);
     expect(state.filtered).toHaveLength(3);
+  });
+
+  it('keeps only ungraded cards when no grid filters are active in grade mode', () => {
+    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' } } });
+    applyFilter(state);
+    expect(state.filtered.map(c => c.id)).toEqual(['b', 'c']);
+  });
+
+  it('keeps all cards when no grid filters are active but grade mode is forced to show a graded card', () => {
+    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    applyFilter(state);
+    expect(state.filtered.map(c => c.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('keeps only cards matching the grid filters', () => {
@@ -233,11 +245,11 @@ describe('setTab', () => {
     expect(state.index).toBe(0);
   });
 
-  it('preserves the index when entering grade without filters', () => {
+  it('resets to the start of the ungraded list when entering grade without filters', () => {
     const el = makeEl();
     const state = makeState({ index: 1, tab: 'grid' });
     setTab('grade', state, el);
-    expect(state.index).toBe(1);
+    expect(state.index).toBe(0);
   });
 
   it('honours an explicit index when entering grade with filters active', () => {
@@ -409,6 +421,15 @@ describe('render', () => {
   it('fills the grade view for the current card', () => {
     const el = makeEl();
     const state = makeState({ grades: { a: { grade: 'A' } } });
+    render(state, el);
+    // Grade mode now cycles only through ungraded cards, so the first visible is Card B
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(el.seal.style.display).toBe('none');
+  });
+
+  it('fills the grade view for a forced graded card', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
     render(state, el);
     expect(el.cardName.textContent).toBe('Card A');
     expect(el.seal.textContent).toBe('A');

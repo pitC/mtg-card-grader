@@ -10,7 +10,6 @@ import {
   toggleGridChip,
   resetGridFilters,
   setupHoverEvents,
-  findNextUngradedIndex,
   allCardsGraded,
 } from './render.js';
 
@@ -30,6 +29,7 @@ const state = {
   compareActive: false,
   compareLoading: false,
   compareFilter: null,
+  _forcedGradeCardId: null,
 };
 
 const el = {
@@ -251,6 +251,8 @@ async function gradeCurrentCard(grade) {
     grade,
     gradedAt: new Date().toISOString(),
   };
+  // Clear any forced graded view after (re-)grading
+  if (state._forcedGradeCardId) delete state._forcedGradeCardId;
   if (allCardsGraded(state) && state.tab === 'grade') {
     setTab('grid', state, el);
   } else {
@@ -273,6 +275,7 @@ async function clearCurrentCard() {
   if (!state.filtered.length) return;
   const card = state.filtered[state.index];
   delete state.grades[card.id];
+  if (state._forcedGradeCardId === card.id) delete state._forcedGradeCardId;
   render(state, el);
   const ok = await persistGrades({
     collectionKey: state.collectionKey,
@@ -287,6 +290,8 @@ async function clearCurrentCard() {
 }
 
 function move(delta) {
+  // Navigating clears a forced graded card view so subsequent cycles stay ungraded-only
+  if (state._forcedGradeCardId) delete state._forcedGradeCardId;
   const next = state.index + delta;
   if (next >= 0 && next < state.filtered.length) {
     state.index = next;
@@ -458,8 +463,9 @@ async function init() {
       updateSyncKeyButton();
     }
 
-    const firstUngraded = findNextUngradedIndex(state);
-    if (firstUngraded >= 0) state.index = firstUngraded;
+    // In grade mode with no filters, filtered will be ungraded only and index 0 is the first ungraded.
+    // Keep index at 0 so the first render starts on the first ungraded card.
+    state.index = 0;
 
     // Auto-switch to grid if all cards in the set are graded
     if (allCardsGraded(state) && state.tab === 'grade') {
