@@ -12,6 +12,7 @@ import {
   setupHoverEvents,
   allCardsGraded,
 } from './render.js';
+import { moveState, handleGradeKeydown } from './gradeNav.js';
 
 const state = {
   setCode: null,
@@ -291,13 +292,7 @@ async function clearCurrentCard() {
 }
 
 function move(delta) {
-  // Navigating clears a forced graded card view so subsequent cycles stay ungraded-only
-  if (state._forcedGradeCardId) delete state._forcedGradeCardId;
-  const next = state.index + delta;
-  if (next >= 0 && next < state.filtered.length) {
-    state.index = next;
-    render(state, el);
-  }
+  moveState(state, el, delta, render);
 }
 
 function setCompareStatus(text, isError) {
@@ -384,6 +379,10 @@ el.gridFilters.addEventListener('click', e => {
 });
 
 setupHoverEvents(state, el);
+
+document.addEventListener('keydown', e => {
+  handleGradeKeydown(e, state, gradeCurrentCard, move);
+});
 
 function switchToSetSelection() {
   if (!state.setCode) return;

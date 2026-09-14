@@ -437,6 +437,68 @@ describe('render', () => {
   });
 });
 
+describe('renderGradeView navigation buttons', () => {
+  it('enables Prev after grading first card even though filtered index is 0', () => {
+    const el = makeEl();
+    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' } }, index: 0 });
+    render(state, el);
+    // First visible is Card B (base idx 1), so Prev should go back to graded Card A
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(el.prevBtn.disabled).toBe(false);
+    expect(el.nextBtn.disabled).toBe(false);
+  });
+
+  it('disables Prev at first card of the set and Next at last card', () => {
+    const el = makeEl();
+    let state = makeState({ tab: 'grade', grades: {}, index: 0 });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(el.prevBtn.disabled).toBe(true);
+    expect(el.nextBtn.disabled).toBe(false);
+
+    state = makeState({ tab: 'grade', grades: {}, index: 2 });
+    // Need filtered to have all 3; set explicitly via applyFilter
+    render(state, el);
+    // With no grades, last ungraded is Card C (base idx 2 = last)
+    expect(el.prevBtn.disabled).toBe(false);
+    expect(el.nextBtn.disabled).toBe(true);
+  });
+
+  it('disables Prev when forced graded card is first and enables Next', () => {
+    const el = makeEl();
+    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' }, b: { grade: 'B' } }, _forcedGradeCardId: 'a', index: 0 });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(el.prevBtn.disabled).toBe(true);
+    expect(el.nextBtn.disabled).toBe(false);
+  });
+
+  it('uses filtered bounds when grid filters are active', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grade',
+      grades: { a: { grade: 'A' } },
+      gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
+      index: 0,
+    });
+    render(state, el);
+    // Filtered is only Card A, so both Prev and Next disabled even though base has neighbours
+    expect(el.prevBtn.disabled).toBe(true);
+    expect(el.nextBtn.disabled).toBe(true);
+  });
+
+  it('enables Next at last ungraded when later graded exists via base order', () => {
+    const el = makeEl();
+    // Cards a,b,c where c graded, ungraded [a,b], last ungraded b is base idx 1, next base is c graded (exists)
+    const state = makeState({ tab: 'grade', grades: { c: { grade: 'C' } }, index: 1 });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    // Base idx 1 not last (2), so Next should be enabled to go to graded C
+    expect(el.nextBtn.disabled).toBe(false);
+    expect(el.prevBtn.disabled).toBe(false);
+  });
+});
+
 describe('comparison rendering', () => {
   function makeActualGrades() {
     return {

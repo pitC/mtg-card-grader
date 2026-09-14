@@ -90,8 +90,14 @@ export function renderGradeView(state, el) {
     btn.classList.toggle('active', grade && grade.grade === btn.dataset.grade);
   });
 
-  el.prevBtn.disabled = state.index === 0;
-  el.nextBtn.disabled = state.index === state.filtered.length - 1;
+  if (state.tab === 'grade' && !gridFiltersActive(state) && state.cards.length) {
+    const baseIdx = state.cards.indexOf(card);
+    el.prevBtn.disabled = baseIdx <= 0;
+    el.nextBtn.disabled = baseIdx === -1 || baseIdx >= state.cards.length - 1;
+  } else {
+    el.prevBtn.disabled = state.index === 0;
+    el.nextBtn.disabled = state.index === state.filtered.length - 1;
+  }
 }
 
 function cardGrade(state, card) {
