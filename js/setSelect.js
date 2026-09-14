@@ -82,6 +82,8 @@ function selectFirstResult(el) {
 // suggestions (sets released or to be released within +/- 1 month, filled out
 // with the latest released sets), plus live name search.
 export async function initSetSelect(el) {
+  if (el._setSelectInitialized) return;
+  el._setSelectInitialized = true;
   const loading = el.recentSetsLoading;
   if (loading) loading.style.display = 'flex';
   try {
@@ -99,6 +101,9 @@ export async function initSetSelect(el) {
     });
     el.setSearchResults.addEventListener('click', handleSetClick);
     el.recentSets.addEventListener('click', handleSetClick);
+  } catch (err) {
+    el._setSelectInitialized = false;
+    throw err;
   } finally {
     if (loading) loading.style.display = 'none';
   }

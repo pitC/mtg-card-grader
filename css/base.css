@@ -65,6 +65,7 @@ button:focus-visible, a:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
 }
 
 .set-icon {
@@ -78,6 +79,8 @@ button:focus-visible, a:focus-visible {
   mask-repeat: no-repeat;
   mask-position: center;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color 0.15s;
 }
 
 .set-name {
@@ -85,6 +88,28 @@ button:focus-visible, a:focus-visible {
   font-weight: 600;
   font-size: 20px;
   letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.set-info:hover .set-name,
+.set-name:hover {
+  color: var(--brass-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--brass);
+}
+
+.set-info:hover .set-icon,
+.set-icon:hover {
+  background-color: var(--brass-bright);
+}
+
+.set-name:focus-visible,
+.set-icon:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .set-meta {

@@ -48,6 +48,7 @@ const el = {
   gradeEmpty: document.getElementById('grade-empty'),
   cardWrap: document.getElementById('card-wrap'),
   gridView: document.getElementById('grid-view'),
+  setInfo: document.getElementById('set-info'),
   setName: document.getElementById('set-name'),
   setMeta: document.getElementById('set-meta'),
   setIcon: document.getElementById('set-icon'),
@@ -384,6 +385,44 @@ el.gridFilters.addEventListener('click', e => {
 
 setupHoverEvents(state, el);
 
+function switchToSetSelection() {
+  if (!state.setCode) return;
+  const params = new URLSearchParams(location.search);
+  if (!params.has('set')) return;
+  params.delete('set');
+  const newSearch = params.toString();
+  const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}${location.hash}`;
+  // Use a full navigation (not pushState) so the next set selection
+  // also does a full reload — pushState left the document in a
+  // state where the subsequent `location.href = "?set=..."` from
+  // setSelect was treated as a same-document navigation and the
+  // stylesheets were not re-applied (see screenshot, hard reload
+  // fixes it).
+  location.href = newUrl;
+}
+
+function handleSetInfoActivate(e) {
+  if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.type === 'keydown') e.preventDefault();
+  // Avoid double-trigger when the event bubbles from a child that already handled it
+  if (e._handledSetSwitch) return;
+  e._handledSetSwitch = true;
+  switchToSetSelection();
+}
+
+if (el.setInfo) {
+  el.setInfo.addEventListener('click', handleSetInfoActivate);
+  el.setInfo.addEventListener('keydown', handleSetInfoActivate);
+}
+if (el.setName) {
+  el.setName.addEventListener('click', handleSetInfoActivate);
+  el.setName.addEventListener('keydown', handleSetInfoActivate);
+}
+if (el.setIcon) {
+  el.setIcon.addEventListener('click', handleSetInfoActivate);
+  el.setIcon.addEventListener('keydown', handleSetInfoActivate);
+}
+
 // Keep grid scroll position up to date while in grid view (covers window and element scrolling)
 if (typeof window !== 'undefined') {
   window.addEventListener('scroll', () => {
@@ -403,6 +442,8 @@ if (el.gridView) {
 async function initSetSelectScreen() {
   el.appHeader.style.display = 'none';
   el.status.style.display = 'none';
+  if (el.gradeView) el.gradeView.style.display = 'none';
+  if (el.gridView) el.gridView.style.display = 'none';
   el.setSelectView.style.display = 'block';
   try {
     await initSetSelect(el);

@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/views.css">
+<link rel="stylesheet" href="css/base.css?v=20260914">
+<link rel="stylesheet" href="css/views.css?v=20260914">
 </head>
 <body>
 
 <div class="app">
   <div class="header" id="app-header">
-    <div class="set-info">
-      <div class="set-icon" id="set-icon"></div>
+    <div class="set-info" id="set-info" role="button" tabindex="0" title="Click to change set" aria-label="Change set">
+      <div class="set-icon" id="set-icon" role="button" tabindex="0" aria-label="Change set"></div>
       <div>
-        <div class="set-name" id="set-name">Loading…</div>
+        <div class="set-name" id="set-name" role="button" tabindex="0" title="Click to change set">Loading…</div>
         <div class="set-meta" id="set-meta">&nbsp;</div>
       </div>
     </div>
@@ -103,7 +103,7 @@
   </div>
 </div>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=20260914"></script>
 
 </body>
 </html>
