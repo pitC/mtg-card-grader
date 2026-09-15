@@ -359,6 +359,95 @@ describe('buildGridFilterBar', () => {
     renderGridView(state, el);
     expect(el.gridFilterSummary.innerHTML).toBe('<strong>3</strong> cards');
   });
+
+  it('adds an in-field clear button that is hidden when query is empty', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const clearBtn = el.gridView.querySelector('.grid-search-row .search-clear');
+    expect(clearBtn).toBeTruthy();
+    expect(clearBtn.hidden || clearBtn.style.display === 'none' || clearBtn.classList.contains('hidden')).toBe(true);
+    expect(clearBtn.getAttribute('aria-label')).toMatch(/clear/i);
+  });
+
+  it('shows the clear button when a query is present', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const search = el.gridView.querySelector('.grid-search-row .search-input');
+    const clearBtn = el.gridView.querySelector('.grid-search-row .search-clear');
+    search.value = 'bolt';
+    search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    expect(state.gridFilters.query).toBe('bolt');
+    expect(clearBtn.hidden === false || clearBtn.style.display !== 'none').toBe(true);
+  });
+
+  it('clicking the clear button clears the query, input value and re-renders', () => {
+    const el = makeEl();
+    const state = makeState({ gridFilters: { grades: [], colors: [], rarities: [], query: 'lurrus' } });
+    buildGridFilterBar(state, el);
+    const search = el.gridView.querySelector('.grid-search-row .search-input');
+    // simulate pre-filled state: input should reflect query
+    search.value = 'lurrus';
+    search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    renderGridView(state, el);
+    expect(el.gridFilterSummary.innerHTML).toBe('<strong>0</strong> / 3 cards match');
+    const clearBtn = el.gridView.querySelector('.grid-search-row .search-clear');
+    clearBtn.click();
+    expect(search.value).toBe('');
+    expect(state.gridFilters.query).toBe('');
+    expect(el.gridFilterSummary.innerHTML).toBe('<strong>3</strong> cards');
+  });
+
+  it('clear button keeps focus on the search input', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const search = el.gridView.querySelector('.grid-search-row .search-input');
+    const clearBtn = el.gridView.querySelector('.grid-search-row .search-clear');
+    search.value = 'bolt';
+    search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    document.body.appendChild(search);
+    search.focus();
+    clearBtn.click();
+    expect(document.activeElement).toBe(search);
+    search.remove();
+  });
+
+  it('pressing Escape when query is present clears the search and keeps focus', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const search = el.gridView.querySelector('.grid-search-row .search-input');
+    search.value = 'lurrus';
+    search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    renderGridView(state, el);
+    document.body.appendChild(search);
+    search.focus();
+    const ev = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+    search.dispatchEvent(ev);
+    expect(search.value).toBe('');
+    expect(state.gridFilters.query).toBe('');
+    expect(document.activeElement).toBe(search);
+    expect(el.gridFilterSummary.innerHTML).toBe('<strong>3</strong> cards');
+    search.remove();
+  });
+
+  it('pressing Escape when query is empty blurs the search input', () => {
+    const el = makeEl();
+    const state = makeState();
+    buildGridFilterBar(state, el);
+    const search = el.gridView.querySelector('.grid-search-row .search-input');
+    document.body.appendChild(search);
+    search.value = '';
+    search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    search.focus();
+    expect(document.activeElement).toBe(search);
+    const ev = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+    search.dispatchEvent(ev);
+    expect(document.activeElement).not.toBe(search);
+    search.remove();
+  });
 });
 
 describe('toggleGridChip', () => {

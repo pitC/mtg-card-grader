@@ -240,12 +240,50 @@ export function buildGridFilterBar(state, el) {
   searchInput.placeholder = 'Card name, type, or text…';
   searchInput.autocomplete = 'off';
   searchInput.spellcheck = false;
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'search-clear';
+  clearBtn.setAttribute('aria-label', 'Clear search');
+  clearBtn.textContent = '×';
+  clearBtn.hidden = true;
+  el.gridSearchClear = clearBtn;
+
+  function syncSearchClear() {
+    const hasQuery = !!(state.gridFilters.query && state.gridFilters.query.trim());
+    clearBtn.hidden = !hasQuery;
+  }
+
   searchInput.addEventListener('input', () => {
     state.gridFilters.query = searchInput.value.trim();
+    syncSearchClear();
     renderGridView(state, el);
   });
+  searchInput.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (state.gridFilters.query || searchInput.value.trim()) {
+      state.gridFilters.query = '';
+      searchInput.value = '';
+      syncSearchClear();
+      renderGridView(state, el);
+      searchInput.focus();
+      e.stopPropagation();
+    } else {
+      searchInput.blur();
+    }
+  });
+  clearBtn.addEventListener('click', () => {
+    state.gridFilters.query = '';
+    searchInput.value = '';
+    syncSearchClear();
+    renderGridView(state, el);
+    searchInput.focus();
+  });
+
   searchRow.appendChild(searchInput);
+  searchRow.appendChild(clearBtn);
   el.gridSearch = searchInput;
+  syncSearchClear();
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
@@ -352,6 +390,7 @@ export function syncGridChips(state, el) {
 
 export function renderGridView(state, el) {
   hideHoverCard(el);
+  if (el.gridSearchClear) el.gridSearchClear.hidden = !(state.gridFilters.query && state.gridFilters.query.trim());
   renderCompareSummary(state, el);
   const filtered = state.cards.filter(card => gridMatches(state, card));
   if (el.gridFilterSummary) {
@@ -541,6 +580,7 @@ export function toggleGridChip(state, el, chip) {
 export function resetGridFilters(state, el) {
   state.gridFilters = { grades: [], colors: [], rarities: [], query: '' };
   if (el.gridSearch) el.gridSearch.value = '';
+  if (el.gridSearchClear) el.gridSearchClear.hidden = true;
   syncGridChips(state, el);
   renderGridView(state, el);
 }

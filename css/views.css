@@ -198,6 +198,7 @@
 /* ---------- Grid view ---------- */
 
 .grid-search-row {
+  position: relative;
   width: 100%;
   margin-bottom: 10px;
 }
@@ -205,6 +206,35 @@
 .grid-search-row .search-input {
   width: 100%;
   min-width: 0;
+  padding-right: 36px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  color: var(--ink);
+  background: var(--panel);
+}
+
+.search-clear[hidden] {
+  display: none !important;
 }
 
 .grid-filters {
