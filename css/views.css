@@ -1,22 +1,46 @@
-/* ---------- Grade (single card) view ---------- */
+/* ---------- Grade (single card) view — scaled to fit viewport, no scroll ---------- */
+
+#grade-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  gap: clamp(8px, 1.2vh, 16px);
+  gap: clamp(8px, 1.2dvh, 16px);
+}
 
 .light-table {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: clamp(12px, 2vh, 40px) 20px;
+  padding: clamp(12px, 2dvh, 40px) 20px;
   border-radius: var(--radius);
   background: radial-gradient(ellipse at center, var(--table-center) 0%, var(--table-edge) 72%);
   border: 1px solid var(--line);
+  flex: 1;
+  min-height: 0;
+  max-height: min(62vh, 520px);
+  max-height: min(62dvh, 520px);
+  overflow: hidden;
 }
 
 .card-wrap {
   position: relative;
-  width: min(300px, 70vw);
+  width: min(300px, 70vw, calc(58vh * 0.714));
+  width: min(300px, 70vw, calc(58dvh * 0.714));
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
   filter: drop-shadow(0 20px 40px rgba(0,0,0,0.55));
   cursor: pointer;
   transition: transform 0.15s ease, filter 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-wrap:hover {
@@ -29,6 +53,11 @@
 
 .card-wrap img {
   width: 100%;
+  height: auto;
+  max-height: 100%;
+  max-height: 58vh;
+  max-height: 58dvh;
+  object-fit: contain;
   display: block;
   border-radius: 4.5% / 3.3%;
   background: var(--panel);
@@ -62,7 +91,9 @@
 
 .card-meta {
   text-align: center;
-  margin-top: 22px;
+  margin-top: clamp(8px, 1vh, 22px);
+  margin-top: clamp(8px, 1dvh, 22px);
+  flex-shrink: 0;
 }
 
 .card-name {
@@ -85,21 +116,28 @@
 .grade-row {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-top: 26px;
+  gap: clamp(6px, 1vh, 10px);
+  gap: clamp(6px, 1dvh, 10px);
+  margin-top: clamp(10px, 1.5vh, 26px);
+  margin-top: clamp(10px, 1.5dvh, 26px);
+  flex-shrink: 0;
 }
 
 .grade-btn {
-  width: 52px;
-  height: 52px;
+  width: clamp(44px, 6vh, 52px);
+  width: clamp(44px, 6dvh, 52px);
+  height: clamp(44px, 6vh, 52px);
+  height: clamp(44px, 6dvh, 52px);
   border-radius: 50%;
   border: 1px solid var(--line-bright);
   background: var(--panel);
   color: var(--ink);
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: 19px;
+  font-size: clamp(16px, 2.2vh, 19px);
+  font-size: clamp(16px, 2.2dvh, 19px);
   transition: transform 0.1s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
 }
 
 .grade-btn:hover {
@@ -118,7 +156,10 @@
   align-items: center;
   justify-content: center;
   gap: 18px;
-  margin-top: 22px;
+  margin-top: clamp(8px, 1.2vh, 22px);
+  margin-top: clamp(8px, 1.2dvh, 22px);
+  padding-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .nav-btn {
@@ -146,14 +187,6 @@
 }
 
 .clear-link:hover { opacity: 1; }
-
-.hint {
-  text-align: center;
-  color: var(--muted-dim);
-  font-size: 10px;
-  margin-top: 30px;
-  letter-spacing: 0.04em;
-}
 
 .empty-note {
   text-align: center;
@@ -578,6 +611,19 @@
 @media (max-width: 640px) {
   .grid-filters-body { flex-direction: column; align-items: stretch; gap: 14px; }
   .lane-track { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+}
+
+@media (max-height: 700px) {
+  .header { margin-bottom: 12px; padding-bottom: 10px; }
+  .light-table { padding: 12px 16px; }
+  .card-name { font-size: 18px; }
+  .card-sub { font-size: 10px; }
+}
+
+@media (max-height: 600px) {
+  .header { margin-bottom: 8px; padding-bottom: 8px; }
+  .card-name { font-size: 16px; }
+  .grade-btn { width: 44px; height: 44px; font-size: 16px; }
 }
 
 @media (max-width: 480px) {
