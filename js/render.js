@@ -86,9 +86,14 @@ export function renderGradeView(state, el) {
     el.seal.style.display = 'none';
   }
 
+  // Reset grading button colours on card transition – clear previous active state
   [...el.gradeRow.children].forEach(btn => {
-    btn.classList.toggle('active', grade && grade.grade === btn.dataset.grade);
+    btn.classList.remove('active');
   });
+  if (grade) {
+    const activeBtn = [...el.gradeRow.children].find(btn => btn.dataset.grade === grade.grade);
+    if (activeBtn) activeBtn.classList.add('active');
+  }
 
   if (state.tab === 'grade' && !gridFiltersActive(state) && state.cards.length) {
     const baseIdx = state.cards.indexOf(card);
@@ -98,6 +103,11 @@ export function renderGradeView(state, el) {
     el.prevBtn.disabled = state.index === 0;
     el.nextBtn.disabled = state.index === state.filtered.length - 1;
   }
+}
+
+export function resetGradeButtons(el) {
+  if (!el.gradeRow) return;
+  [...el.gradeRow.children].forEach(btn => btn.classList.remove('active'));
 }
 
 function cardGrade(state, card) {

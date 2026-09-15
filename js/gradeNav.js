@@ -1,4 +1,4 @@
-import { gridFiltersActive } from './render.js';
+import { gridFiltersActive, resetGradeButtons } from './render.js';
 import { GRADES } from './constants.js';
 
 export function moveState(state, el, delta, render) {
@@ -22,6 +22,7 @@ export function moveState(state, el, delta, render) {
     const isGraded = !!state.grades[target.id];
     if (isGraded) {
       state._forcedGradeCardId = target.id;
+      resetGradeButtons(el);
       render(state, el);
     } else {
       if (state._forcedGradeCardId) delete state._forcedGradeCardId;
@@ -32,6 +33,7 @@ export function moveState(state, el, delta, render) {
       } else {
         state.index = 0;
       }
+      resetGradeButtons(el);
       render(state, el);
     }
     return;
@@ -41,6 +43,7 @@ export function moveState(state, el, delta, render) {
   const next = state.index + delta;
   if (next >= 0 && next < state.filtered.length) {
     state.index = next;
+    resetGradeButtons(el);
     render(state, el);
   }
 }

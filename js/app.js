@@ -11,6 +11,7 @@ import {
   resetGridFilters,
   setupHoverEvents,
   allCardsGraded,
+  resetGradeButtons,
 } from './render.js';
 import { moveState, handleGradeKeydown } from './gradeNav.js';
 
@@ -255,6 +256,8 @@ async function gradeCurrentCard(grade) {
   };
   // Clear any forced graded view after (re-)grading
   if (state._forcedGradeCardId) delete state._forcedGradeCardId;
+  // Reset grading button colours immediately on transition to the next card
+  resetGradeButtons(el);
   if (allCardsGraded(state) && state.tab === 'grade') {
     setTab('grid', state, el);
   } else {

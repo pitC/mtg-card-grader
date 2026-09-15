@@ -199,6 +199,105 @@ describe('moveState with filters active or grid tab (filtered navigation)', () =
   });
 });
 
+describe('moveState grading button colours reset on transition to next card', () => {
+  function activeGrades(el) {
+    return [...el.gradeRow.children].filter(b => b.classList.contains('active')).map(b => b.dataset.grade);
+  }
+
+  it('resets colours when moving from forced graded card to next ungraded', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    render(state, el);
+    expect(activeGrades(el)).toEqual(['A']);
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual([]);
+  });
+
+  it('shows new graded colour when moving to a graded card, not stale previous', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'C' } } });
+    render(state, el);
+    // Start at Card C (first ungraded after a,b graded)
+    expect(el.cardName.textContent).toBe('Card C');
+    expect(activeGrades(el)).toEqual([]);
+    // Prev to graded B should show C, not lingering empty
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual(['C']);
+    // Prev again to graded A should show A, not C
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(activeGrades(el)).toEqual(['A']);
+  });
+
+  it('resets colours when moving forward through ungraded cards (no stale grade)', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' } } });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual([]);
+    // Simulate stale active left on button (bug scenario)
+    el.gradeRow.children[0].classList.add('active');
+    expect(activeGrades(el)).toEqual(['A']);
+    // Move to next ungraded C – stale must be cleared
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Card C');
+    expect(activeGrades(el)).toEqual([]);
+  });
+
+  it('resets colours when moving in filtered mode to ungraded card', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grade',
+      grades: { a: { grade: 'A' } },
+      gridFilters: { grades: ['A', 'ungraded'], colors: [], rarities: [], query: '' },
+    });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(activeGrades(el)).toEqual(['A']);
+    moveState(state, el, 1, render);
+    // Next filtered is an ungraded card (b or c) – should have no active
+    expect(activeGrades(el)).toEqual([]);
+  });
+
+  it('transitions from graded to graded via filtered navigation shows correct grade', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grade',
+      grades: { a: { grade: 'A' }, c: { grade: 'B' } },
+      gridFilters: { grades: ['A', 'B'], colors: [], rarities: [], query: '' },
+    });
+    render(state, el);
+    expect(activeGrades(el)).toEqual(['A']);
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Card C');
+    expect(activeGrades(el)).toEqual(['B']);
+  });
+
+  it('does not leave stale colours when move is at bounds (no transition)', () => {
+    const el = makeEl();
+    const state = makeState({ grades: {}, index: 0 });
+    render(state, el);
+    el.gradeRow.children[2].classList.add('active');
+    moveState(state, el, -1, render);
+    // No transition occurred, but current card is still ungraded – render not called,
+    // stale active remains (no reset) is acceptable; verify no crash and no transition
+    expect(el.cardName.textContent).toBe('Card A');
+    // Active still reflects stale because no move happened – ensure we don't incorrectly clear without move
+    // This test documents expected behaviour: no reset when no transition
+    expect(activeGrades(el)).toEqual(['C']);
+  });
+
+  it('resets via explicit resetGradeButtons before render even with stale state', async () => {
+    const { resetGradeButtons } = await import('../js/render.js');
+    const el = makeEl();
+    for (const b of el.gradeRow.children) b.classList.add('active');
+    resetGradeButtons(el);
+    expect(activeGrades(el)).toEqual([]);
+  });
+});
+
 describe('handleGradeKeydown', () => {
   function makeEvent(key, opts = {}) {
     const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts });

@@ -14,6 +14,7 @@ import {
   syncGridChips,
   findNextUngradedIndex,
   allCardsGraded,
+  resetGradeButtons,
 } from '../js/render.js';
 
 function makeChip(group, value) {
@@ -434,6 +435,104 @@ describe('render', () => {
     expect(el.cardName.textContent).toBe('Card A');
     expect(el.seal.textContent).toBe('A');
     expect(el.seal.style.display).toBe('flex');
+  });
+});
+
+describe('resetGradeButtons', () => {
+  it('removes active class from all grade buttons', () => {
+    const el = makeEl();
+    for (const btn of el.gradeRow.children) btn.classList.add('active');
+    resetGradeButtons(el);
+    expect([...el.gradeRow.children].every(b => !b.classList.contains('active'))).toBe(true);
+  });
+
+  it('removes only active grade buttons, leaving others untouched', () => {
+    const el = makeEl();
+    el.gradeRow.children[0].classList.add('active');
+    resetGradeButtons(el);
+    expect(el.gradeRow.children[0].classList.contains('active')).toBe(false);
+    expect(el.gradeRow.children[1].classList.contains('active')).toBe(false);
+  });
+
+  it('handles missing gradeRow gracefully', () => {
+    expect(() => resetGradeButtons({})).not.toThrow();
+    expect(() => resetGradeButtons({ gradeRow: null })).not.toThrow();
+  });
+
+  it('is idempotent when no buttons are active', () => {
+    const el = makeEl();
+    resetGradeButtons(el);
+    expect([...el.gradeRow.children].every(b => !b.classList.contains('active'))).toBe(true);
+  });
+});
+
+describe('renderGradeView grade button colours reset on transition', () => {
+  function activeGrades(el) {
+    return [...el.gradeRow.children].filter(b => b.classList.contains('active')).map(b => b.dataset.grade);
+  }
+
+  it('shows no active button for an ungraded card', () => {
+    const el = makeEl();
+    const state = makeState({ grades: {} });
+    render(state, el);
+    expect(activeGrades(el)).toEqual([]);
+    expect(el.seal.style.display).toBe('none');
+  });
+
+  it('shows active button matching the graded card', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    render(state, el);
+    expect(activeGrades(el)).toEqual(['A']);
+    expect(el.seal.textContent).toBe('A');
+  });
+
+  it('resets colours when transitioning from graded to next ungraded card via render', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    render(state, el);
+    expect(activeGrades(el)).toEqual(['A']);
+    // Simulate grading transition: clear forced and re-render to next ungraded (B)
+    delete state._forcedGradeCardId;
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual([]);
+  });
+
+  it('clears stale active state even if buttons were manually left active', () => {
+    const el = makeEl();
+    const state = makeState({ grades: {} });
+    render(state, el);
+    // Manually leave a stale active state as if previous card's grade persisted
+    el.gradeRow.children[0].classList.add('active');
+    expect(activeGrades(el)).toEqual(['A']);
+    // Re-render same ungraded card – stale state must be cleared
+    render(state, el);
+    expect(activeGrades(el)).toEqual([]);
+  });
+
+  it('switches active button when moving from one graded card to another', () => {
+    const el = makeEl();
+    const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'B' } }, _forcedGradeCardId: 'a' });
+    render(state, el);
+    expect(activeGrades(el)).toEqual(['A']);
+    state._forcedGradeCardId = 'b';
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual(['B']);
+  });
+
+  it('resets colours when next card is ungraded after grading via filtered ungraded list', () => {
+    const el = makeEl();
+    const state = makeState({ grades: {} });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(activeGrades(el)).toEqual([]);
+    // Grade Card A and advance – filtered now starts at Card B (ungraded)
+    state.grades.a = { grade: 'C' };
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual([]);
   });
 });
 

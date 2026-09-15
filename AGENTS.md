@@ -10,6 +10,20 @@
 | `make lint` | Alias for `npm run lint` |
 | `python3 -m http.server [8000]` | Serve the app locally (no build needed); required for CORS (Scryfall/17Lands) |
 
+## Development workflow — TDD (Red-Green-Refactor)
+
+Always follow Test-Driven Development. Do not write production code before a failing test.
+
+1. **Red** — Write the smallest failing test that describes the desired behavior (bug reproduction or feature acceptance). Run `npm test` / `npx vitest run --reporter=verbose test/<file>` to confirm it fails for the expected reason.
+2. **Green** — Write the minimal production code in `js/` (or `css/`/`index.html` if UI-related) to make the test pass. No extra functionality, no speculative generality.
+3. **Refactor** — Clean up both test and production code while keeping the suite green. Remove duplication, clarify names, enforce project conventions. Re-run `npm test` and `npm run lint` after each refactor.
+
+Rules:
+- Every bug fix starts with a failing regression test; every feature starts with a failing acceptance/unit test.
+- Keep the cycle short (minutes, not hours). Commit only when tests are green and lint is clean.
+- If a test is hard to write, re-examine the design — improve seams/testability first via a refactor under green.
+- Prefer editing existing `test/*.test.js` files (see Testing quirks) and `js/` modules; do not add production code without test coverage.
+
 ## Key conventions & quirks
 
 - **No build step**: The app is plain HTML/JS. Run with a local server for CORS support.
