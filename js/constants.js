@@ -46,4 +46,4 @@ export const ANALYSIS_COLOR_VALUES = [
   { value: 'C', cls: 'd-c' },
 ];
 
-export const ANALYSIS_RARITY_VALUES = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
+export const ANALYSIS_RARITY_VALUES = ['common', 'uncommon', 'rare', 'mythic'];

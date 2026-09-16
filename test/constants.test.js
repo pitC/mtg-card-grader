@@ -30,8 +30,6 @@ describe('ANALYSIS_RARITY_VALUES', () => {
       'uncommon',
       'rare',
       'mythic',
-      'special',
-      'bonus',
     ]);
   });
 });
