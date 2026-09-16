@@ -675,14 +675,14 @@ describe('renderGradeView navigation buttons', () => {
     expect(el.nextBtn.disabled).toBe(true);
   });
 
-  it('enables Next at last ungraded when later graded exists via base order', () => {
+  it('disables Next at last ungraded when graded lane is before ungraded (flat order)', () => {
     const el = makeEl();
-    // Cards a,b,c where c graded, ungraded [a,b], last ungraded b is base idx 1, next base is c graded (exists)
+    // Cards a,b,c where c graded C, flat order is [c,a,b] (C lane before Ungraded), so b is last
     const state = makeState({ tab: 'grade', grades: { c: { grade: 'C' } }, index: 1 });
     render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
-    // Base idx 1 not last (2), so Next should be enabled to go to graded C
-    expect(el.nextBtn.disabled).toBe(false);
+    // B is last in flat order, so Next disabled, Prev enabled to go to A then C
+    expect(el.nextBtn.disabled).toBe(true);
     expect(el.prevBtn.disabled).toBe(false);
   });
 });

@@ -1,9 +1,22 @@
-import { gridFiltersActive, resetGradeButtons } from './render.js';
+import { gridFiltersActive, gridFlatFiltered, resetGradeButtons } from './render.js';
 import { GRADES } from './constants.js';
 
 export function moveState(state, el, delta, render) {
   const filtersActive = gridFiltersActive(state);
-  if (state.tab === 'grade' && !filtersActive && state.cards.length) {
+  // Grid-entered grade: simple lane-order cycling through full filtered list
+  if (state.tab === 'grade' && state._fromGrid && state.cards.length) {
+    if (state._forcedGradeCardId) delete state._forcedGradeCardId;
+    const next = state.index + delta;
+    if (next >= 0 && next < state.filtered.length) {
+      state.index = next;
+      resetGradeButtons(el);
+      render(state, el);
+    }
+    return;
+  }
+  if (state.tab === 'grade' && !filtersActive && !state._fromGrid && state.cards.length) {
+    // Toggle entry: use deterministic grid lane order but only through ungraded
+    const flat = gridFlatFiltered(state);
     let current = null;
     if (state._forcedGradeCardId) {
       current = state.cards.find(c => c.id === state._forcedGradeCardId);
@@ -11,14 +24,14 @@ export function moveState(state, el, delta, render) {
       current = state.filtered[state.index];
     }
     if (!current) {
-      const idx = Math.max(0, Math.min(state.index, state.cards.length - 1));
-      current = state.cards[idx];
+      const idx = Math.max(0, Math.min(state.index, flat.length - 1));
+      current = flat[idx] || state.cards[idx];
     }
-    const baseIdx = current ? state.cards.indexOf(current) : -1;
+    const baseIdx = current ? flat.indexOf(current) : -1;
     if (baseIdx === -1) return;
     const targetIdx = baseIdx + delta;
-    if (targetIdx < 0 || targetIdx >= state.cards.length) return;
-    const target = state.cards[targetIdx];
+    if (targetIdx < 0 || targetIdx >= flat.length) return;
+    const target = flat[targetIdx];
     const isGraded = !!state.grades[target.id];
     if (isGraded) {
       state._forcedGradeCardId = target.id;
@@ -26,8 +39,15 @@ export function moveState(state, el, delta, render) {
       render(state, el);
     } else {
       if (state._forcedGradeCardId) delete state._forcedGradeCardId;
-      const ungraded = state.cards.filter(c => !state.grades[c.id]);
-      const newFilteredIdx = ungraded.indexOf(target);
+      const ungradedFlat = flat.filter(c => !state.grades[c.id]);
+      // When all cards are graded, flat fallback keeps cycling through graded cards
+      if (!ungradedFlat.length && flat.length) {
+        state._forcedGradeCardId = target.id;
+        resetGradeButtons(el);
+        render(state, el);
+        return;
+      }
+      const newFilteredIdx = ungradedFlat.indexOf(target);
       if (newFilteredIdx !== -1) {
         state.index = newFilteredIdx;
       } else {

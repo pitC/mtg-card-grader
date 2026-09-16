@@ -32,6 +32,7 @@ const state = {
   compareLoading: false,
   compareFilter: null,
   _forcedGradeCardId: null,
+  _fromGrid: null,
 };
 
 const el = {
@@ -258,11 +259,7 @@ async function gradeCurrentCard(grade) {
   if (state._forcedGradeCardId) delete state._forcedGradeCardId;
   // Reset grading button colours immediately on transition to the next card
   resetGradeButtons(el);
-  if (allCardsGraded(state) && state.tab === 'grade') {
-    setTab('grid', state, el);
-  } else {
-    render(state, el);
-  }
+  render(state, el);
   const ok = await persistGrades({
     collectionKey: state.collectionKey,
     setCode: state.setCode,
@@ -342,7 +339,14 @@ async function toggleComparison() {
 
 el.tabGroup.addEventListener('click', e => {
   const btn = e.target.closest('button[data-tab]');
-  if (btn) setTab(btn.dataset.tab, state, el);
+  if (btn) {
+    // Toggle entry: grade view should cycle ungraded, not grid order
+    if (btn.dataset.tab === 'grade') {
+      if (state._fromGrid) delete state._fromGrid;
+      if (state._forcedGradeCardId) delete state._forcedGradeCardId;
+    }
+    setTab(btn.dataset.tab, state, el);
+  }
 });
 
 el.gradeRow.addEventListener('click', e => {
