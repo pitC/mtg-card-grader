@@ -6,6 +6,42 @@ const CACHE_PREFIXES = [
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+export function clearCacheForSet(setCode) {
+  if (!setCode || typeof localStorage === 'undefined') return 0;
+  const raw = String(setCode).trim();
+  if (!raw) return 0;
+  const variants = new Set([raw, raw.toLowerCase(), raw.toUpperCase()]);
+  const prefixes = CACHE_PREFIXES;
+  let removed = 0;
+  for (const variant of variants) {
+    for (const prefix of prefixes) {
+      const key = `${prefix}${variant}`;
+      if (localStorage.getItem(key) !== null) {
+        localStorage.removeItem(key);
+        removed++;
+      }
+    }
+  }
+  return removed;
+}
+
+export function clearAllCaches() {
+  if (typeof localStorage === 'undefined') return 0;
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k) keys.push(k);
+  }
+  let removed = 0;
+  for (const key of keys) {
+    if (CACHE_PREFIXES.some(p => key.startsWith(p)) && localStorage.getItem(key) !== null) {
+      localStorage.removeItem(key);
+      removed++;
+    }
+  }
+  return removed;
+}
+
 export function isQuotaExceededError(err) {
   return !!err && (
     err.name === 'QuotaExceededError' ||
