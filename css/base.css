@@ -530,46 +530,6 @@ button:focus-visible, a:focus-visible {
 
 .set-item:hover { background: var(--table-center); }
 
-.set-item-row {
-  display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid var(--line);
-}
-
-.set-item-row:last-child { border-bottom: none; }
-
-.set-item-row .set-item {
-  flex: 1;
-  min-width: 0;
-  border-bottom: none;
-}
-
-.clear-cache-btn {
-  flex-shrink: 0;
-  align-self: center;
-  margin-right: 10px;
-  background: var(--panel);
-  border: 1px solid var(--line-bright);
-  color: var(--muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 6px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.clear-cache-btn:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--ink);
-}
-
-.clear-cache-btn:disabled {
-  opacity: 0.7;
-  cursor: default;
-}
-
 .set-item-icon {
   width: 30px;
   height: 30px;

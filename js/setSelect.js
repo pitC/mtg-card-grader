@@ -1,5 +1,4 @@
 import { fetchAllSets, expansionSets, suggestSets } from './scryfall.js';
-import { clearCacheForSet } from './cache.js';
 
 export function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({
@@ -29,19 +28,14 @@ export function setItemHtml(set) {
     ? `<img class="set-item-icon" src="${escapeHtml(set.icon_svg_uri)}" alt="">`
     : '<span class="set-item-icon placeholder" aria-hidden="true"></span>';
   const meta = [set.code.toUpperCase(), set.set_type, set.released_at].filter(Boolean).join(' · ');
-  const codeEsc = escapeHtml(set.code);
-  const clearLabel = `Clear local cache for ${escapeHtml(set.name || set.code)}`;
   return `
-    <div class="set-item-row">
-      <button type="button" class="set-item" data-code="${codeEsc}">
-        ${icon}
-        <span class="set-item-info">
-          <span class="set-item-name">${escapeHtml(set.name)}</span>
-          <span class="set-item-meta">${escapeHtml(meta)}</span>
-        </span>
-      </button>
-      <button type="button" class="clear-cache-btn" data-clear-cache="${codeEsc}" aria-label="${clearLabel}" title="Clear local cache">Clear cache</button>
-    </div>
+    <button type="button" class="set-item" data-code="${escapeHtml(set.code)}">
+      ${icon}
+      <span class="set-item-info">
+        <span class="set-item-name">${escapeHtml(set.name)}</span>
+        <span class="set-item-meta">${escapeHtml(meta)}</span>
+      </span>
+    </button>
   `;
 }
 
@@ -74,26 +68,9 @@ export function updateSearchResults(el, sets) {
 }
 
 function handleSetClick(e) {
-  if (e.target.closest('[data-clear-cache]')) return;
   const btn = e.target.closest('.set-item');
   if (!btn) return;
   location.href = buildSetUrl(btn.dataset.code);
-}
-
-function handleClearCacheClick(e) {
-  const btn = e.target.closest('[data-clear-cache]');
-  if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const code = btn.dataset.clearCache;
-  const removed = clearCacheForSet(code);
-  const original = btn.textContent;
-  btn.textContent = removed ? 'Cleared' : 'No cache';
-  btn.disabled = true;
-  setTimeout(() => {
-    btn.textContent = original;
-    btn.disabled = false;
-  }, 1200);
 }
 
 function selectFirstResult(el) {
@@ -122,9 +99,7 @@ export async function initSetSelect(el) {
         selectFirstResult(el);
       }
     });
-    el.setSearchResults.addEventListener('click', handleClearCacheClick);
     el.setSearchResults.addEventListener('click', handleSetClick);
-    el.recentSets.addEventListener('click', handleClearCacheClick);
     el.recentSets.addEventListener('click', handleSetClick);
   } catch (err) {
     el._setSelectInitialized = false;

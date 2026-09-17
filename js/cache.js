@@ -6,54 +6,6 @@ const CACHE_PREFIXES = [
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-function getStorage() {
-  if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
-  if (typeof localStorage !== 'undefined') return localStorage;
-  return null;
-}
-
-export function clearCacheForSet(setCode) {
-  const ls = getStorage();
-  if (!setCode || !ls) return 0;
-  const raw = String(setCode).trim().toLowerCase();
-  if (!raw) return 0;
-  const keys = [];
-  for (let i = 0; i < ls.length; i++) {
-    const k = ls.key(i);
-    if (k) keys.push(k);
-  }
-  let removed = 0;
-  for (const key of keys) {
-    const lower = key.toLowerCase();
-    for (const prefix of CACHE_PREFIXES) {
-      if (lower === `${prefix.toLowerCase()}${raw}`) {
-        ls.removeItem(key);
-        removed++;
-        break;
-      }
-    }
-  }
-  return removed;
-}
-
-export function clearAllCaches() {
-  const ls = getStorage();
-  if (!ls) return 0;
-  const keys = [];
-  for (let i = 0; i < ls.length; i++) {
-    const k = ls.key(i);
-    if (k) keys.push(k);
-  }
-  let removed = 0;
-  for (const key of keys) {
-    if (CACHE_PREFIXES.some(p => key.toLowerCase().startsWith(p.toLowerCase())) && ls.getItem(key) !== null) {
-      ls.removeItem(key);
-      removed++;
-    }
-  }
-  return removed;
-}
-
 export function isQuotaExceededError(err) {
   return !!err && (
     err.name === 'QuotaExceededError' ||

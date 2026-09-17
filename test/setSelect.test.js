@@ -9,7 +9,6 @@ import {
   updateSearchResults,
   initSetSelect,
 } from '../js/setSelect.js';
-import { clearCacheForSet, clearAllCaches } from '../js/cache.js';
 
 function makeEl() {
   return {
@@ -82,63 +81,6 @@ describe('setItemHtml', () => {
   it('escapes the set name', () => {
     const html = setItemHtml({ code: 'abc', name: 'A <B> & "C"', set_type: 'funny' });
     expect(html).toContain('A &lt;B&gt; &amp; &quot;C&quot;');
-  });
-
-  it('renders a clear cache button next to the set', () => {
-    const html = setItemHtml({
-      code: 'dsk',
-      name: 'Duskmourn: House of Horror',
-      set_type: 'expansion',
-      released_at: '2024-09-27',
-    });
-    expect(html).toContain('data-clear-cache="dsk"');
-    expect(html).toContain('Clear cache');
-    expect(html).toContain('set-item-row');
-  });
-
-  it('escapes the set code in the clear cache button', () => {
-    const html = setItemHtml({ code: 'a"b', name: 'A', set_type: 'expansion', released_at: '2024-01-01' });
-    expect(html).toContain('data-clear-cache="a&quot;b"');
-  });
-});
-
-describe('clearCacheForSet', () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
-  afterEach(() => {
-    localStorage.clear();
-  });
-
-  it('removes cached entries for the given set code', () => {
-    localStorage.setItem('scryfallCardGraderSetMeta:dsk', JSON.stringify({ set: { code: 'dsk' }, fetchedAt: new Date().toISOString() }));
-    localStorage.setItem('scryfallCardGraderSetCards:dsk', JSON.stringify({ cards: [], fetchedAt: new Date().toISOString() }));
-    localStorage.setItem('scryfallCardGraderActual:dsk', JSON.stringify({ byName: {}, fetchedAt: new Date().toISOString() }));
-    localStorage.setItem('scryfallCardGraderSetMeta:mkm', JSON.stringify({ set: { code: 'mkm' }, fetchedAt: new Date().toISOString() }));
-    localStorage.setItem('keep', '1');
-    const removed = clearCacheForSet('dsk');
-    expect(removed).toBe(3);
-    expect(localStorage.getItem('scryfallCardGraderSetMeta:dsk')).toBeNull();
-    expect(localStorage.getItem('scryfallCardGraderSetCards:dsk')).toBeNull();
-    expect(localStorage.getItem('scryfallCardGraderActual:dsk')).toBeNull();
-    expect(localStorage.getItem('scryfallCardGraderSetMeta:mkm')).not.toBeNull();
-    expect(localStorage.getItem('keep')).toBe('1');
-  });
-
-  it('is case-insensitive and returns 0 when there is no cache', () => {
-    localStorage.setItem('scryfallCardGraderSetMeta:dsk', JSON.stringify({ set: {}, fetchedAt: new Date().toISOString() }));
-    expect(clearCacheForSet('DSK')).toBe(1);
-    expect(localStorage.getItem('scryfallCardGraderSetMeta:dsk')).toBeNull();
-    expect(clearCacheForSet('dsk')).toBe(0);
-  });
-
-  it('clearAllCaches removes every cached entry', () => {
-    localStorage.setItem('scryfallCardGraderSetMeta:dsk', '{}');
-    localStorage.setItem('scryfallCardGraderActual:mkm', '{}');
-    localStorage.setItem('keep', '1');
-    expect(clearAllCaches()).toBe(2);
-    expect(localStorage.getItem('keep')).toBe('1');
   });
 });
 
@@ -295,32 +237,5 @@ describe('initSetSelect', () => {
     resolveFetch();
     await promise;
     expect(loading.style.display).toBe('none');
-  });
-
-  it('clear cache button removes the local cache without navigating', async () => {
-    vi.stubGlobal('location', { href: 'http://localhost/', search: '' });
-    localStorage.clear();
-    localStorage.setItem('scryfallCardGraderSetMeta:b', JSON.stringify({ set: { code: 'b' }, fetchedAt: new Date().toISOString() }));
-    localStorage.setItem('scryfallCardGraderSetCards:b', JSON.stringify({ cards: [], fetchedAt: new Date().toISOString() }));
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: [
-          { code: 'b', card_count: 1, released_at: isoDaysFromNow(1), set_type: 'expansion', name: 'Set B' },
-          { code: 'a', card_count: 1, released_at: isoDaysFromNow(3), set_type: 'expansion', name: 'Set A' },
-          { code: 'c', card_count: 1, released_at: isoDaysFromNow(-1), set_type: 'expansion', name: 'Set C' },
-        ],
-      }),
-    });
-    const el = makeEl();
-    await initSetSelect(el);
-    const clearBtn = el.recentSets.querySelector('[data-clear-cache="b"]');
-    expect(clearBtn).toBeTruthy();
-    clearBtn.click();
-    expect(localStorage.getItem('scryfallCardGraderSetMeta:b')).toBeNull();
-    expect(localStorage.getItem('scryfallCardGraderSetCards:b')).toBeNull();
-    // Should have changed button text and disabled state, not navigated
-    expect(clearBtn.textContent).toBe('Cleared');
-    expect(clearBtn.disabled).toBe(true);
   });
 });
