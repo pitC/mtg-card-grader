@@ -24,53 +24,65 @@ export function gridFlatFiltered(state) {
   return flat;
 }
 
-export function applyFilter(state) {
-  if (state.tab === 'grade' && state._fromGrid) {
-    // Entered grade via grid card click: cycle through full grid lane order
-    // (deterministic, same as displayed). Includes graded cards so re-grading
-    // stays within the lane order (e.g. next A after re-grading an A to B).
-    state.filtered = gridFlatFiltered(state);
-  } else if (state.tab === 'grade' && !gridFiltersActive(state)) {
-    // Toggle entry (no grid click): cycle through ungraded only in grid lane order.
-    const flat = gridFlatFiltered(state);
-    const ungradedFlat = flat.filter(card => !state.grades[card.id]);
-    if (state._forcedGradeCardId) {
-      const forced = state.cards.find(card => card.id === state._forcedGradeCardId);
-      if (forced) {
-        if (!ungradedFlat.includes(forced)) {
-          const flatIdx = flat.indexOf(forced);
-          let insertPos = ungradedFlat.findIndex(card => flat.indexOf(card) > flatIdx);
-          if (insertPos === -1) insertPos = ungradedFlat.length;
-          ungradedFlat.splice(insertPos, 0, forced);
-          state.filtered = ungradedFlat;
-          // Keep the forced card selected; will be cleared on next navigation
-          if (state.index < 0 || state.index >= state.filtered.length || state.filtered[state.index]?.id !== state._forcedGradeCardId) {
-            state.index = insertPos;
-          }
-        } else {
-          state.filtered = ungradedFlat;
-          const forcedIdx = state.filtered.indexOf(forced);
-          if (forcedIdx !== -1) state.index = forcedIdx;
-        }
-      } else {
-        state.filtered = ungradedFlat;
-      }
-    } else {
-      state.filtered = ungradedFlat;
-      // If all cards are graded, keep cycling through the full grid order
-      // instead of showing an empty list.
-      if (state.filtered.length === 0 && state.cards.length > 0) {
-        state.filtered = flat;
-        if (state.index >= state.filtered.length) state.index = 0;
-      }
-    }
-  } else if (state.tab === 'grade' && gridFiltersActive(state)) {
-    // Toggle entry with filters active: use grid lane order
-    state.filtered = gridFlatFiltered(state);
-  } else {
-    const base = state.cards.filter(card => gridMatches(state, card));
-    state.filtered = base;
+export function allCardsFlat(state) {
+  const lanes = new Map();
+  for (const g of GRADES) lanes.set(g, []);
+  const ungraded = [];
+  for (const card of state.cards) {
+    const grade = state.grades[card.id] ? state.grades[card.id].grade : null;
+    if (grade && lanes.has(grade)) lanes.get(grade).push(card);
+    else ungraded.push(card);
   }
+  const flat = [];
+  for (const g of GRADES) flat.push(...lanes.get(g));
+  flat.push(...ungraded);
+  return flat;
+}
+
+export function buildGradingQueue(state, source) {
+  if (source === 'startup-ungraded' || source === 'toggle') {
+    const flat = allCardsFlat(state);
+    const ungradedFlat = flat.filter(card => !state.grades[card.id]);
+    if (ungradedFlat.length) return ungradedFlat;
+    return flat;
+  }
+  if (source === 'grid-click') {
+    return gridFlatFiltered(state);
+  }
+  return [];
+}
+
+export function applyFilter(state) {
+  if (state.tab === 'grade' && Array.isArray(state.gradingQueue)) {
+    state.filtered = state.gradingQueue;
+    if (typeof state.gradingIndex === 'number') state.index = state.gradingIndex;
+    if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
+    if (typeof state.gradingIndex === 'number' && state.gradingIndex !== state.index) state.gradingIndex = state.index;
+    return;
+  }
+  if (state.tab === 'grade') {
+    // Fallback for direct applyFilter calls without explicit queue (tests / legacy).
+    // Snapshot entry points (setTab) bypass this by pre-populating gradingQueue.
+    // Preserve old toggle vs grid-click distinction for backwards compat until tests migrate.
+    if (gridFiltersActive(state)) {
+      state.filtered = gridFlatFiltered(state);
+    } else {
+      const flat = allCardsFlat(state);
+      const ungradedFlat = flat.filter(card => !state.grades[card.id]);
+      if (ungradedFlat.length) state.filtered = ungradedFlat;
+      else if (state.cards.length) state.filtered = flat;
+      else state.filtered = [];
+    }
+    if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
+    // Keep gradingQueue alias for callers that inspect it
+    if (!Array.isArray(state.gradingQueue)) {
+      state.gradingQueue = state.filtered;
+      state.gradingIndex = state.index;
+    }
+    return;
+  }
+  const base = state.cards.filter(card => gridMatches(state, card));
+  state.filtered = base;
   if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
 }
 
@@ -123,11 +135,15 @@ export function renderGradeView(state, el) {
     if (activeBtn) activeBtn.classList.add('active');
   }
 
-  if (state.tab === 'grade' && !gridFiltersActive(state) && !state._fromGrid && state.cards.length) {
-    const flat = gridFlatFiltered(state);
-    const baseIdx = flat.indexOf(card);
-    el.prevBtn.disabled = baseIdx <= 0;
-    el.nextBtn.disabled = baseIdx === -1 || baseIdx >= flat.length - 1;
+  if (state.tab === 'grade' && Array.isArray(state.gradingQueue)) {
+    const len = state.gradingQueue.length;
+    if (len <= 1) {
+      el.prevBtn.disabled = true;
+      el.nextBtn.disabled = true;
+    } else {
+      el.prevBtn.disabled = false;
+      el.nextBtn.disabled = false;
+    }
   } else {
     el.prevBtn.disabled = state.index === 0;
     el.nextBtn.disabled = state.index === state.filtered.length - 1;
@@ -500,18 +516,9 @@ export function renderGridView(state, el) {
         }
 
         btn.addEventListener('click', () => {
-          // Entering grade via grid card click: remember origin so grading
-          // cycles through grid lane order (next A, etc.) instead of jumping
-          // to next ungraded (which is toggle behaviour).
-          state._fromGrid = true;
-          if (state._forcedGradeCardId) delete state._forcedGradeCardId;
-          const flat = gridFlatFiltered(state);
-          const gradeIdx = flat.indexOf(card);
-          if (gradeIdx !== -1) {
-            setTab('grade', state, el, { index: gradeIdx });
-          } else {
-            setTab('grade', state, el, { index: filtered.indexOf(card) });
-          }
+          const queue = buildGradingQueue(state, 'grid-click');
+          const idx = queue.indexOf(card);
+          setTab('grade', state, el, { queue, index: idx !== -1 ? idx : 0 });
         });
         track.appendChild(btn);
       });
@@ -529,16 +536,53 @@ export function render(state, el) {
 }
 
 export function setTab(tab, state, el, opts = {}) {
-  if (tab === 'grade' && state.tab !== 'grade' && opts.index === undefined && !state._forcedGradeCardId && !state._fromGrid) {
-    state.index = 0;
+  const enteringGrade = tab === 'grade' && state.tab !== 'grade';
+  if (enteringGrade) {
+    let queue;
+    let idx = 0;
+    if (Array.isArray(opts.queue)) {
+      queue = opts.queue;
+      if (typeof opts.index === 'number') idx = opts.index;
+      else if (typeof opts.gradingIndex === 'number') idx = opts.gradingIndex;
+    } else if (typeof opts.source === 'string') {
+      queue = buildGradingQueue(state, opts.source);
+      if (typeof opts.index === 'number') idx = opts.index;
+    } else if (opts.index !== undefined) {
+      // Explicit index without queue (legacy call) — build toggle queue
+      queue = buildGradingQueue(state, 'toggle');
+      idx = opts.index;
+    } else {
+      // Toggle entry or startup: build toggle queue (ungraded or all P2)
+      queue = buildGradingQueue(state, 'toggle');
+      idx = 0;
+    }
+    if (queue) {
+      idx = Math.max(0, Math.min(idx, queue.length - 1));
+      state.gradingQueue = queue;
+      state.gradingIndex = idx;
+      state.filtered = queue;
+      state.index = idx;
+    }
+  } else if (tab === 'grade' && opts.index !== undefined) {
+    // Already in grade mode but caller sets index (rare)
+    const len = state.gradingQueue ? state.gradingQueue.length : state.filtered.length;
+    const clamped = Math.max(0, Math.min(opts.index, Math.max(0, len - 1)));
+    if (Array.isArray(state.gradingQueue)) {
+      state.gradingIndex = clamped;
+      state.index = clamped;
+    } else {
+      state.index = clamped;
+    }
+  } else if (tab === 'grade' && Array.isArray(opts.queue)) {
+    const queue = opts.queue;
+    const idx = typeof opts.index === 'number' ? opts.index : state.gradingIndex ?? 0;
+    const clamped = Math.max(0, Math.min(idx, Math.max(0, queue.length - 1)));
+    state.gradingQueue = queue;
+    state.gradingIndex = clamped;
+    state.filtered = queue;
+    state.index = clamped;
   }
-  if (opts.index !== undefined) state.index = opts.index;
-  // Clear forced card and grid-origin flag when leaving grade view
-  if (tab !== 'grade') {
-    if (state._forcedGradeCardId) delete state._forcedGradeCardId;
-    if (state._fromGrid) delete state._fromGrid;
-  }
-  
+
   // Save scroll position when leaving grid view (window scroll is the actual scroller; fallback to element)
   if (state.tab === 'grid' && tab !== 'grid') {
     const winY = typeof window !== 'undefined' ? (window.scrollY ?? window.pageYOffset ?? 0) : 0;
