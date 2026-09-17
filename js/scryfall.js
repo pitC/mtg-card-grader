@@ -164,7 +164,7 @@ export async function fetchSetCards(code) {
   const cached = loadSetCardsCache(code);
   if (cached) return cached;
 
-  let url = `https://api.scryfall.com/cards/search?q=e%3A${code}&order=set&unique=cards`;
+  let url = `https://api.scryfall.com/cards/search?q=e%3A${code}&order=color&unique=cards`;
   let all = [];
   while (url) {
     const page = await fetchJson(url);
