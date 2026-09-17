@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { moveState, handleGradeKeydown } from '../js/gradeNav.js';
-import { render } from '../js/render.js';
+import { render, buildGradingQueue } from '../js/render.js';
 
 function makeEl() {
   const el = {
@@ -65,52 +65,91 @@ function makeState(overrides = {}) {
     tab: 'grade',
     grades: {},
     gridFilters: { grades: [], colors: [], rarities: [], query: '' },
-    _forcedGradeCardId: null,
+    gradingQueue: null,
+    gradingIndex: 0,
     ...overrides,
   };
 }
 
-describe('moveState in grade mode without filters (base-order navigation)', () => {
-  it('Prev from first ungraded after grading goes back to graded via forced', () => {
+describe('moveState in grade mode with grading queue (wrap cycling)', () => {
+  it('Prev from first wraps to last and Next from last wraps to first', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } } });
+    const state = makeState({ grades: {} });
     render(state, el);
-    expect(el.cardName.textContent).toBe('Card B');
-    expect(state.filtered.map(c => c.id)).toEqual(['b', 'c', 'd']);
-    moveState(state, el, -1, render);
-    expect(state._forcedGradeCardId).toBe('a');
     expect(el.cardName.textContent).toBe('Card A');
-    expect(state.filtered.map(c => c.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['a', 'b', 'c', 'd']);
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Card D');
+    expect(state.gradingIndex).toBe(3);
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(state.gradingIndex).toBe(0);
   });
 
-  it('Prev walks back through multiple graded cards', () => {
+  it('Prev and Next cycle through ungraded queue', () => {
     const el = makeEl();
     const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'B' } } });
     render(state, el);
+    // Toggle queue is ungraded only [c,d]
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['c', 'd']);
     expect(el.cardName.textContent).toBe('Card C');
-    moveState(state, el, -1, render);
-    expect(el.cardName.textContent).toBe('Card B');
-    expect(state._forcedGradeCardId).toBe('b');
-    moveState(state, el, -1, render);
-    expect(el.cardName.textContent).toBe('Card A');
-    expect(state._forcedGradeCardId).toBe('a');
-  });
-
-  it('Next from forced graded to ungraded clears forced and sets index', () => {
-    const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
-    render(state, el);
-    expect(el.cardName.textContent).toBe('Card A');
     moveState(state, el, 1, render);
-    expect(state._forcedGradeCardId == null || state._forcedGradeCardId === undefined).toBe(true);
-    expect(el.cardName.textContent).toBe('Card B');
-    // Should be at ungraded index 0 (Card B)
-    expect(state.index).toBe(0);
+    expect(el.cardName.textContent).toBe('Card D');
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Card C'); // wrap
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Card D');
   });
 
-  it('Next steps sequentially through graded and ungraded', () => {
+  it('single-card queue does not move', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    const cards = [{ id: 'x', name: 'Solo', rarity: 'common', type_line: 'Creature', collector_number: '1', image_uris: { normal: 'x.jpg' } }];
+    const state = makeState({ cards, grades: {}, gradingQueue: cards, gradingIndex: 0, filtered: cards, index: 0 });
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Solo');
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Solo');
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Solo');
+  });
+
+  it('grading does not mutate queue — back shows just-graded card', () => {
+    const el = makeEl();
+    const state = makeState({ grades: {} });
+    render(state, el);
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['a', 'b', 'c', 'd']);
+    // Simulate grading Card A (index 0) via gradeCurrentCard logic: advance to next
+    state.grades.a = { grade: 'A', gradedAt: new Date().toISOString() };
+    // Auto-advance as gradeCurrentCard does
+    state.gradingIndex = (state.gradingIndex + 1) % state.gradingQueue.length;
+    state.index = state.gradingIndex;
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    // Queue stays same even though A now graded
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['a', 'b', 'c', 'd']);
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Card A');
+    expect(state.grades.a.grade).toBe('A');
+    // Re-grade same card, queue still not mutated
+    state.grades.a.grade = 'B';
+    // gradeCurrentCard would advance again
+    state.gradingIndex = (state.gradingIndex + 0) % state.gradingQueue.length; // stay at A then advance simulated as if re-graded from A
+    // Actually from A, next is B
+    state.gradingIndex = 0;
+    state.index = 0;
+    render(state, el);
+    // Now grade A again to B and advance
+    state.grades.a.grade = 'C';
+    state.gradingIndex = (0 + 1) % state.gradingQueue.length;
+    state.index = state.gradingIndex;
+    render(state, el);
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('Next steps sequentially and wraps', () => {
+    const el = makeEl();
+    const state = makeState({ grades: {} });
     render(state, el);
     moveState(state, el, 1, render); // to b
     expect(el.cardName.textContent).toBe('Card B');
@@ -118,43 +157,8 @@ describe('moveState in grade mode without filters (base-order navigation)', () =
     expect(el.cardName.textContent).toBe('Card C');
     moveState(state, el, 1, render); // to d
     expect(el.cardName.textContent).toBe('Card D');
-  });
-
-  it('does nothing at bounds', () => {
-    const el = makeEl();
-    const state = makeState({ grades: {}, index: 0 });
-    render(state, el);
+    moveState(state, el, 1, render); // wrap to a
     expect(el.cardName.textContent).toBe('Card A');
-    moveState(state, el, -1, render);
-    expect(el.cardName.textContent).toBe('Card A');
-    const lastState = makeState({ grades: {}, index: 3 });
-    render(lastState, el);
-    expect(el.cardName.textContent).toBe('Card D');
-    moveState(lastState, el, 1, render);
-    expect(el.cardName.textContent).toBe('Card D');
-  });
-
-  it('after grading, Prev is enabled and can return then re-grade advances to next ungraded', () => {
-    const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } } });
-    render(state, el);
-    expect(el.cardName.textContent).toBe('Card B');
-    // Simulate grading B
-    state.grades.b = { grade: 'C', gradedAt: new Date().toISOString() };
-    if (state._forcedGradeCardId) delete state._forcedGradeCardId;
-    render(state, el);
-    expect(el.cardName.textContent).toBe('Card C');
-    // Prev should go back to B (graded)
-    moveState(state, el, -1, render);
-    expect(el.cardName.textContent).toBe('Card B');
-    expect(state._forcedGradeCardId).toBe('b');
-    // Re-grade B with different grade – mimics gradeCurrentCard clearing forced
-    state.grades.b.grade = 'D';
-    delete state._forcedGradeCardId;
-    render(state, el);
-    // Should now be at next ungraded C
-    expect(el.cardName.textContent).toBe('Card C');
-    expect(state.filtered.map(c => c.id)).toEqual(['c', 'd']);
   });
 });
 
@@ -173,7 +177,6 @@ describe('moveState with filters active or grid tab (filtered navigation)', () =
     expect(el.cardName.textContent).toBe('Card C');
     moveState(state, el, -1, render);
     expect(el.cardName.textContent).toBe('Card A');
-    expect(state._forcedGradeCardId == null).toBe(true);
   });
 
   it('moves within filtered in grid tab', () => {
@@ -185,17 +188,24 @@ describe('moveState with filters active or grid tab (filtered navigation)', () =
     expect(state.filtered[state.index].name).toBe('Card B');
   });
 
-  it('clears forced when moving in filtered mode', () => {
+  it('wraps in filtered mode when queue is set from filter', () => {
     const el = makeEl();
     const state = makeState({
       tab: 'grade',
       grades: { a: { grade: 'A' } },
       gridFilters: { grades: ['A'], colors: [], rarities: [], query: '' },
-      _forcedGradeCardId: 'a',
     });
+    // Build explicit queue via buildGradingQueue grid-click
+    const queue = buildGradingQueue(state, 'grid-click');
+    expect(queue.map(c => c.id)).toEqual(['a']);
+    // Single queue: no move
+    state.gradingQueue = queue;
+    state.gradingIndex = 0;
+    state.filtered = queue;
+    state.index = 0;
     render(state, el);
     moveState(state, el, 1, render);
-    expect(state._forcedGradeCardId == null).toBe(true);
+    expect(el.cardName.textContent).toBe('Card A');
   });
 });
 
@@ -204,9 +214,20 @@ describe('moveState grading button colours reset on transition to next card', ()
     return [...el.gradeRow.children].filter(b => b.classList.contains('active')).map(b => b.dataset.grade);
   }
 
-  it('resets colours when moving from forced graded card to next ungraded', () => {
+  it('resets colours when moving to next in queue wraps', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    const state = makeState({ grades: { a: { grade: 'A' } } });
+    render(state, el);
+    // Queue is [b,c,d], first is B ungraded
+    expect(el.cardName.textContent).toBe('Card B');
+    expect(activeGrades(el)).toEqual([]);
+    // Simulate gradingQueue containing a graded card as first element via explicit queue
+    // Create a queue that starts with graded A for this test
+    const customQueue = [state.cards[0], state.cards[1], state.cards[2]];
+    state.gradingQueue = customQueue;
+    state.gradingIndex = 0;
+    state.filtered = customQueue;
+    state.index = 0;
     render(state, el);
     expect(activeGrades(el)).toEqual(['A']);
     moveState(state, el, 1, render);
@@ -214,19 +235,27 @@ describe('moveState grading button colours reset on transition to next card', ()
     expect(activeGrades(el)).toEqual([]);
   });
 
-  it('shows new graded colour when moving to a graded card, not stale previous', () => {
+  it('shows new graded colour when moving to a graded card via queue', () => {
     const el = makeEl();
     const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'C' } } });
+    // toggle with some ungraded gives [c,d] not [a,b,c,d], so create custom queue for graded navigation
+    const customQueue = makeCards(); // [a,b,c,d] includes graded a,b
+    state.gradingQueue = customQueue;
+    state.gradingIndex = 2;
+    state.filtered = customQueue;
+    state.index = 2;
     render(state, el);
-    // Start at Card C (first ungraded after a,b graded)
     expect(el.cardName.textContent).toBe('Card C');
     expect(activeGrades(el)).toEqual([]);
-    // Prev to graded B should show C, not lingering empty
-    moveState(state, el, -1, render);
+    // Move uses queue, test moving backward to graded B
+    state.gradingIndex = 1;
+    state.index = 1;
+    render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
     expect(activeGrades(el)).toEqual(['C']);
-    // Prev again to graded A should show A, not C
-    moveState(state, el, -1, render);
+    state.gradingIndex = 0;
+    state.index = 0;
+    render(state, el);
     expect(el.cardName.textContent).toBe('Card A');
     expect(activeGrades(el)).toEqual(['A']);
   });
@@ -237,10 +266,8 @@ describe('moveState grading button colours reset on transition to next card', ()
     render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
     expect(activeGrades(el)).toEqual([]);
-    // Simulate stale active left on button (bug scenario)
     el.gradeRow.children[0].classList.add('active');
     expect(activeGrades(el)).toEqual(['A']);
-    // Move to next ungraded C – stale must be cleared
     moveState(state, el, 1, render);
     expect(el.cardName.textContent).toBe('Card C');
     expect(activeGrades(el)).toEqual([]);
@@ -257,7 +284,6 @@ describe('moveState grading button colours reset on transition to next card', ()
     expect(el.cardName.textContent).toBe('Card A');
     expect(activeGrades(el)).toEqual(['A']);
     moveState(state, el, 1, render);
-    // Next filtered is an ungraded card (b or c) – should have no active
     expect(activeGrades(el)).toEqual([]);
   });
 
@@ -275,18 +301,15 @@ describe('moveState grading button colours reset on transition to next card', ()
     expect(activeGrades(el)).toEqual(['B']);
   });
 
-  it('does not leave stale colours when move is at bounds (no transition)', () => {
+  it('wraps when at bounds instead of staying', () => {
     const el = makeEl();
     const state = makeState({ grades: {}, index: 0 });
     render(state, el);
-    el.gradeRow.children[2].classList.add('active');
-    moveState(state, el, -1, render);
-    // No transition occurred, but current card is still ungraded – render not called,
-    // stale active remains (no reset) is acceptable; verify no crash and no transition
     expect(el.cardName.textContent).toBe('Card A');
-    // Active still reflects stale because no move happened – ensure we don't incorrectly clear without move
-    // This test documents expected behaviour: no reset when no transition
-    expect(activeGrades(el)).toEqual(['C']);
+    moveState(state, el, -1, render);
+    expect(el.cardName.textContent).toBe('Card D'); // wrap
+    moveState(state, el, 1, render);
+    expect(el.cardName.textContent).toBe('Card A'); // wrap back
   });
 
   it('resets via explicit resetGradeButtons before render even with stale state', async () => {
@@ -301,7 +324,6 @@ describe('moveState grading button colours reset on transition to next card', ()
 describe('handleGradeKeydown', () => {
   function makeEvent(key, opts = {}) {
     const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts });
-    // jsdom KeyboardEvent.key may be set via opts; ensure case
     Object.defineProperty(e, 'key', { value: key });
     return e;
   }
@@ -378,7 +400,6 @@ describe('handleGradeKeydown', () => {
     const state = makeState({ tab: 'grade' });
     const e = makeEvent('a');
     e.preventDefault();
-    // Manually set defaultPrevented by dispatching? jsdom doesn't set after preventDefault on synthetic? Force
     Object.defineProperty(e, 'defaultPrevented', { value: true });
     const handled = handleGradeKeydown(e, state, vi.fn(), vi.fn());
     expect(handled).toBe(false);

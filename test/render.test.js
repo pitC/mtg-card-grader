@@ -110,10 +110,12 @@ describe('applyFilter', () => {
     expect(state.filtered.map(c => c.id)).toEqual(['b', 'c']);
   });
 
-  it('keeps all cards when no grid filters are active but grade mode is forced to show a graded card', () => {
-    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+  it('keeps only ungraded cards even if a graded card would have been forced previously', () => {
+    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' } } });
     applyFilter(state);
-    expect(state.filtered.map(c => c.id)).toEqual(['a', 'b', 'c']);
+    // New queue is snapshot of ungraded only; forced logic removed — graded 'a' not injected
+    expect(state.filtered.map(c => c.id)).toEqual(['b', 'c']);
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['b', 'c']);
   });
 
   it('keeps only cards matching the grid filters', () => {
@@ -517,9 +519,14 @@ describe('render', () => {
     expect(el.seal.style.display).toBe('none');
   });
 
-  it('fills the grade view for a forced graded card', () => {
+  it('fills the grade view for a graded card when queue explicitly contains it', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    const state = makeState({ grades: { a: { grade: 'A' } } });
+    // Build explicit queue containing graded card (as grid-click would)
+    state.gradingQueue = state.cards;
+    state.gradingIndex = 0;
+    state.filtered = state.cards;
+    state.index = 0;
     render(state, el);
     expect(el.cardName.textContent).toBe('Card A');
     expect(el.seal.textContent).toBe('A');
@@ -568,21 +575,30 @@ describe('renderGradeView grade button colours reset on transition', () => {
     expect(el.seal.style.display).toBe('none');
   });
 
-  it('shows active button matching the graded card', () => {
+  it('shows active button matching the graded card when queue starts with it', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    const state = makeState({ grades: { a: { grade: 'A' } } });
+    state.gradingQueue = state.cards;
+    state.gradingIndex = 0;
+    state.filtered = state.cards;
+    state.index = 0;
     render(state, el);
     expect(activeGrades(el)).toEqual(['A']);
     expect(el.seal.textContent).toBe('A');
   });
 
-  it('resets colours when transitioning from graded to next ungraded card via render', () => {
+  it('resets colours when queue moves from graded to ungraded', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' } }, _forcedGradeCardId: 'a' });
+    const state = makeState({ grades: { a: { grade: 'A' } } });
+    state.gradingQueue = state.cards;
+    state.gradingIndex = 0;
+    state.filtered = state.cards;
+    state.index = 0;
     render(state, el);
     expect(activeGrades(el)).toEqual(['A']);
-    // Simulate grading transition: clear forced and re-render to next ungraded (B)
-    delete state._forcedGradeCardId;
+    // Move to next (ungraded B) via queue index
+    state.gradingIndex = 1;
+    state.index = 1;
     render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
     expect(activeGrades(el)).toEqual([]);
@@ -600,28 +616,40 @@ describe('renderGradeView grade button colours reset on transition', () => {
     expect(activeGrades(el)).toEqual([]);
   });
 
-  it('switches active button when moving from one graded card to another', () => {
+  it('switches active button when moving from one graded card to another via queue', () => {
     const el = makeEl();
-    const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'B' } }, _forcedGradeCardId: 'a' });
+    const state = makeState({ grades: { a: { grade: 'A' }, b: { grade: 'B' } } });
+    state.gradingQueue = state.cards;
+    state.gradingIndex = 0;
+    state.filtered = state.cards;
+    state.index = 0;
     render(state, el);
     expect(activeGrades(el)).toEqual(['A']);
-    state._forcedGradeCardId = 'b';
+    state.gradingIndex = 1;
+    state.index = 1;
     render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
     expect(activeGrades(el)).toEqual(['B']);
   });
 
-  it('resets colours when next card is ungraded after grading via filtered ungraded list', () => {
+  it('resets colours when next card is ungraded after grading via queue advance', () => {
     const el = makeEl();
     const state = makeState({ grades: {} });
     render(state, el);
     expect(el.cardName.textContent).toBe('Card A');
     expect(activeGrades(el)).toEqual([]);
-    // Grade Card A and advance – filtered now starts at Card B (ungraded)
+    // Grade Card A and advance — queue is snapshot, index moves to 1 but card B stays ungraded
     state.grades.a = { grade: 'C' };
+    // Simulate gradeCurrentCard auto-advance: queue is [a,b,c], index 0->1
+    if (Array.isArray(state.gradingQueue)) {
+      state.gradingIndex = 1;
+      state.index = 1;
+    }
     render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
     expect(activeGrades(el)).toEqual([]);
+    // Queue still contains a
+    expect(state.gradingQueue.map(c => c.id)).toEqual(['a', 'b', 'c']);
   });
 });
 
@@ -636,28 +664,30 @@ describe('renderGradeView navigation buttons', () => {
     expect(el.nextBtn.disabled).toBe(false);
   });
 
-  it('disables Prev at first card of the set and Next at last card', () => {
+  it('enables both Prev and Next when queue length >1 (wrap)', () => {
     const el = makeEl();
     let state = makeState({ tab: 'grade', grades: {}, index: 0 });
     render(state, el);
     expect(el.cardName.textContent).toBe('Card A');
-    expect(el.prevBtn.disabled).toBe(true);
+    expect(el.prevBtn.disabled).toBe(false);
     expect(el.nextBtn.disabled).toBe(false);
 
     state = makeState({ tab: 'grade', grades: {}, index: 2 });
-    // Need filtered to have all 3; set explicitly via applyFilter
     render(state, el);
-    // With no grades, last ungraded is Card C (base idx 2 = last)
     expect(el.prevBtn.disabled).toBe(false);
-    expect(el.nextBtn.disabled).toBe(true);
+    expect(el.nextBtn.disabled).toBe(false);
   });
 
-  it('disables Prev when forced graded card is first and enables Next', () => {
+  it('enables both when queue explicitly contains graded as first', () => {
     const el = makeEl();
-    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' }, b: { grade: 'B' } }, _forcedGradeCardId: 'a', index: 0 });
+    const state = makeState({ tab: 'grade', grades: { a: { grade: 'A' }, b: { grade: 'B' } } });
+    state.gradingQueue = state.cards;
+    state.gradingIndex = 0;
+    state.filtered = state.cards;
+    state.index = 0;
     render(state, el);
     expect(el.cardName.textContent).toBe('Card A');
-    expect(el.prevBtn.disabled).toBe(true);
+    expect(el.prevBtn.disabled).toBe(false);
     expect(el.nextBtn.disabled).toBe(false);
   });
 
@@ -675,14 +705,12 @@ describe('renderGradeView navigation buttons', () => {
     expect(el.nextBtn.disabled).toBe(true);
   });
 
-  it('disables Next at last ungraded when graded lane is before ungraded (flat order)', () => {
+  it('enables both at last when queue wraps (no disable)', () => {
     const el = makeEl();
-    // Cards a,b,c where c graded C, flat order is [c,a,b] (C lane before Ungraded), so b is last
     const state = makeState({ tab: 'grade', grades: { c: { grade: 'C' } }, index: 1 });
     render(state, el);
     expect(el.cardName.textContent).toBe('Card B');
-    // B is last in flat order, so Next disabled, Prev enabled to go to A then C
-    expect(el.nextBtn.disabled).toBe(true);
+    expect(el.nextBtn.disabled).toBe(false);
     expect(el.prevBtn.disabled).toBe(false);
   });
 });

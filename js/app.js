@@ -12,6 +12,7 @@ import {
   setupHoverEvents,
   allCardsGraded,
   resetGradeButtons,
+  buildGradingQueue,
 } from './render.js';
 import { moveState, handleGradeKeydown } from './gradeNav.js';
 
@@ -31,8 +32,8 @@ const state = {
   compareActive: false,
   compareLoading: false,
   compareFilter: null,
-  _forcedGradeCardId: null,
-  _fromGrid: null,
+  gradingQueue: null,
+  gradingIndex: 0,
 };
 
 const el = {
@@ -255,8 +256,15 @@ async function gradeCurrentCard(grade) {
     grade,
     gradedAt: new Date().toISOString(),
   };
-  // Clear any forced graded view after (re-)grading
-  if (state._forcedGradeCardId) delete state._forcedGradeCardId;
+  if (Array.isArray(state.gradingQueue) && state.gradingQueue.length > 1) {
+    const next = (state.gradingIndex + 1) % state.gradingQueue.length;
+    state.gradingIndex = next;
+    state.index = next;
+    state.filtered = state.gradingQueue;
+  } else if (Array.isArray(state.gradingQueue) && state.gradingQueue.length === 1) {
+    // Single-card queue: stay on same card, just re-render
+    state.filtered = state.gradingQueue;
+  }
   // Reset grading button colours immediately on transition to the next card
   resetGradeButtons(el);
   render(state, el);
@@ -277,7 +285,7 @@ async function clearCurrentCard() {
   if (!state.filtered.length) return;
   const card = state.filtered[state.index];
   delete state.grades[card.id];
-  if (state._forcedGradeCardId === card.id) delete state._forcedGradeCardId;
+  if (Array.isArray(state.gradingQueue)) state.filtered = state.gradingQueue;
   render(state, el);
   const ok = await persistGrades({
     collectionKey: state.collectionKey,
@@ -340,11 +348,6 @@ async function toggleComparison() {
 el.tabGroup.addEventListener('click', e => {
   const btn = e.target.closest('button[data-tab]');
   if (btn) {
-    // Toggle entry: grade view should cycle ungraded, not grid order
-    if (btn.dataset.tab === 'grade') {
-      if (state._fromGrid) delete state._fromGrid;
-      if (state._forcedGradeCardId) delete state._forcedGradeCardId;
-    }
     setTab(btn.dataset.tab, state, el);
   }
 });
@@ -510,9 +513,9 @@ async function init() {
       updateSyncKeyButton();
     }
 
-    // In grade mode with no filters, filtered will be ungraded only and index 0 is the first ungraded.
-    // Keep index at 0 so the first render starts on the first ungraded card.
     state.index = 0;
+    state.gradingIndex = 0;
+    state.gradingQueue = null;
 
     // Auto-switch to grid if all cards in the set are graded
     if (allCardsGraded(state) && state.tab === 'grade') {
@@ -520,6 +523,11 @@ async function init() {
       setTab('grid', state, el);
     } else {
       el.status.style.display = 'none';
+      const queue = buildGradingQueue(state, 'toggle');
+      state.gradingQueue = queue;
+      state.gradingIndex = 0;
+      state.filtered = queue;
+      state.index = 0;
       el.gradeView.style.display = 'block';
       render(state, el);
     }
