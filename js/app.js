@@ -13,6 +13,7 @@ import {
   allCardsGraded,
   resetGradeButtons,
   buildGradingQueue,
+  gradingQueueLabelForSource,
 } from './render.js';
 import { moveState, handleGradeKeydown } from './gradeNav.js';
 
@@ -34,6 +35,7 @@ const state = {
   compareFilter: null,
   gradingQueue: null,
   gradingIndex: 0,
+  gradingQueueLabel: null,
 };
 
 const el = {
@@ -516,6 +518,7 @@ async function init() {
     state.index = 0;
     state.gradingIndex = 0;
     state.gradingQueue = null;
+    state.gradingQueueLabel = null;
 
     // Auto-switch to grid if all cards in the set are graded
     if (allCardsGraded(state) && state.tab === 'grade') {
@@ -528,6 +531,7 @@ async function init() {
       state.gradingIndex = 0;
       state.filtered = queue;
       state.index = 0;
+      state.gradingQueueLabel = gradingQueueLabelForSource(state, queue, 'toggle');
       el.gradeView.style.display = 'block';
       render(state, el);
     }

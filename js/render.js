@@ -52,12 +52,60 @@ export function buildGradingQueue(state, source) {
   return [];
 }
 
+function activeFilterDescription(state) {
+  const parts = [];
+  const f = state.gridFilters;
+  if (f.grades.length) parts.push(f.grades.map(v => v.toUpperCase()).join(', '));
+  if (f.colors.length) parts.push(f.colors.join(', '));
+  if (f.rarities.length) parts.push(f.rarities.join(', '));
+  if (f.query) parts.push(`“${f.query}”`);
+  if (state.compareActive && state.compareFilter) parts.push(state.compareFilter);
+  return parts.join(' · ');
+}
+
+export function gradingQueueLabelForSource(state, queue, source) {
+  if (!queue) return '';
+  if (source === 'toggle' || source === 'startup-ungraded') {
+    const flat = allCardsFlat(state);
+    const ungradedFlat = flat.filter(card => !state.grades[card.id]);
+    if (ungradedFlat.length && queue.length === ungradedFlat.length) return 'all ungraded';
+    return 'entire set';
+  }
+  if (source === 'grid-click') {
+    if (!gridFiltersActive(state)) return 'entire set';
+    const desc = activeFilterDescription(state);
+    return desc ? `filtered — ${desc}` : 'filtered';
+  }
+  if (queue.length === state.cards.length) return 'entire set';
+  const ungradedCount = state.cards.filter(c => !state.grades[c.id]).length;
+  if (ungradedCount && queue.length === ungradedCount && queue.every(c => !state.grades[c.id])) return 'all ungraded';
+  if (gridFiltersActive(state)) {
+    const desc = activeFilterDescription(state);
+    return desc ? `filtered — ${desc}` : 'filtered';
+  }
+  return 'filtered';
+}
+
+function inferGradingQueueLabel(state) {
+  const queue = Array.isArray(state.gradingQueue) ? state.gradingQueue : state.filtered;
+  if (!queue || !queue.length) return '';
+  if (queue.length === state.cards.length) return 'entire set';
+  const ungradedCount = state.cards.filter(c => !state.grades[c.id]).length;
+  if (ungradedCount && queue.length === ungradedCount && queue.every(c => !state.grades[c.id])) return 'all ungraded';
+  if (gridFiltersActive(state)) {
+    const desc = activeFilterDescription(state);
+    return desc ? `filtered — ${desc}` : 'filtered';
+  }
+  return 'filtered';
+}
+
 export function applyFilter(state) {
   if (state.tab === 'grade' && Array.isArray(state.gradingQueue)) {
     state.filtered = state.gradingQueue;
     if (typeof state.gradingIndex === 'number') state.index = state.gradingIndex;
     if (state.index >= state.filtered.length) state.index = Math.max(0, state.filtered.length - 1);
     if (typeof state.gradingIndex === 'number' && state.gradingIndex !== state.index) state.gradingIndex = state.index;
+    if (!state.gradingQueueLabel) state.gradingQueueLabel = inferGradingQueueLabel(state);
     return;
   }
   if (state.tab === 'grade') {
@@ -78,6 +126,10 @@ export function applyFilter(state) {
     if (!Array.isArray(state.gradingQueue)) {
       state.gradingQueue = state.filtered;
       state.gradingIndex = state.index;
+      const source = gridFiltersActive(state) ? 'grid-click' : 'toggle';
+      state.gradingQueueLabel = gradingQueueLabelForSource(state, state.gradingQueue, source);
+    } else if (!state.gradingQueueLabel) {
+      state.gradingQueueLabel = inferGradingQueueLabel(state);
     }
     return;
   }
@@ -121,7 +173,8 @@ export function renderGradeView(state, el) {
   const queuePos = (typeof state.gradingIndex === 'number' ? state.gradingIndex : state.index) + 1;
   // Clamp to valid range for safety (should already be 1..total when filtered non-empty)
   const clampedPos = Math.min(Math.max(queuePos, 1), Math.max(queueTotal, 1));
-  el.cardSub.textContent = `${clampedPos} / ${queueTotal}`;
+  const subsetLabel = state.gradingQueueLabel || inferGradingQueueLabel(state);
+  el.cardSub.textContent = subsetLabel ? `${clampedPos} / ${queueTotal} · ${subsetLabel}` : `${clampedPos} / ${queueTotal}`;
 
   if (grade) {
     el.seal.style.display = 'flex';
@@ -544,20 +597,25 @@ export function setTab(tab, state, el, opts = {}) {
   if (enteringGrade) {
     let queue;
     let idx = 0;
+    let sourceHint;
     if (Array.isArray(opts.queue)) {
       queue = opts.queue;
+      sourceHint = 'grid-click';
       if (typeof opts.index === 'number') idx = opts.index;
       else if (typeof opts.gradingIndex === 'number') idx = opts.gradingIndex;
     } else if (typeof opts.source === 'string') {
       queue = buildGradingQueue(state, opts.source);
+      sourceHint = opts.source;
       if (typeof opts.index === 'number') idx = opts.index;
     } else if (opts.index !== undefined) {
       // Explicit index without queue (legacy call) — build toggle queue
       queue = buildGradingQueue(state, 'toggle');
+      sourceHint = 'toggle';
       idx = opts.index;
     } else {
       // Toggle entry or startup: build toggle queue (ungraded or all P2)
       queue = buildGradingQueue(state, 'toggle');
+      sourceHint = 'toggle';
       idx = 0;
     }
     if (queue) {
@@ -566,6 +624,7 @@ export function setTab(tab, state, el, opts = {}) {
       state.gradingIndex = idx;
       state.filtered = queue;
       state.index = idx;
+      state.gradingQueueLabel = gradingQueueLabelForSource(state, queue, sourceHint);
     }
   } else if (tab === 'grade' && opts.index !== undefined) {
     // Already in grade mode but caller sets index (rare)
@@ -585,6 +644,7 @@ export function setTab(tab, state, el, opts = {}) {
     state.gradingIndex = clamped;
     state.filtered = queue;
     state.index = clamped;
+    state.gradingQueueLabel = gradingQueueLabelForSource(state, queue, 'grid-click');
   }
 
   // Save scroll position when leaving grid view (window scroll is the actual scroller; fallback to element)
