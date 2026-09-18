@@ -117,7 +117,11 @@ export function renderGradeView(state, el) {
   el.cardImage.src = cardImageUrl(card);
   el.cardImage.alt = card.name;
   el.cardName.textContent = card.name;
-  el.cardSub.textContent = `${card.rarity.toUpperCase()} · #${card.collector_number} · ${card.type_line || ''}`;
+  const queueTotal = Array.isArray(state.gradingQueue) ? state.gradingQueue.length : state.filtered.length;
+  const queuePos = (typeof state.gradingIndex === 'number' ? state.gradingIndex : state.index) + 1;
+  // Clamp to valid range for safety (should already be 1..total when filtered non-empty)
+  const clampedPos = Math.min(Math.max(queuePos, 1), Math.max(queueTotal, 1));
+  el.cardSub.textContent = `${clampedPos} / ${queueTotal}`;
 
   if (grade) {
     el.seal.style.display = 'flex';
