@@ -55,7 +55,7 @@ export function buildGradingQueue(state, source) {
 function activeFilterDescription(state) {
   const parts = [];
   const f = state.gridFilters;
-  if (f.grades.length) parts.push(f.grades.map(v => v.toUpperCase()).join(', '));
+  if (f.grades.length) parts.push(`GRADE: ${f.grades.map(v => v.toUpperCase()).join(', ')}`);
   if (f.colors.length) parts.push(f.colors.join(', '));
   if (f.rarities.length) parts.push(f.rarities.join(', '));
   if (f.query) parts.push(`“${f.query}”`);
@@ -73,17 +73,15 @@ export function gradingQueueLabelForSource(state, queue, source) {
   }
   if (source === 'grid-click') {
     if (!gridFiltersActive(state)) return 'entire set';
-    const desc = activeFilterDescription(state);
-    return desc ? `filtered — ${desc}` : 'filtered';
+    return activeFilterDescription(state);
   }
   if (queue.length === state.cards.length) return 'entire set';
   const ungradedCount = state.cards.filter(c => !state.grades[c.id]).length;
   if (ungradedCount && queue.length === ungradedCount && queue.every(c => !state.grades[c.id])) return 'all ungraded';
   if (gridFiltersActive(state)) {
-    const desc = activeFilterDescription(state);
-    return desc ? `filtered — ${desc}` : 'filtered';
+    return activeFilterDescription(state);
   }
-  return 'filtered';
+  return activeFilterDescription(state);
 }
 
 function inferGradingQueueLabel(state) {
@@ -93,10 +91,9 @@ function inferGradingQueueLabel(state) {
   const ungradedCount = state.cards.filter(c => !state.grades[c.id]).length;
   if (ungradedCount && queue.length === ungradedCount && queue.every(c => !state.grades[c.id])) return 'all ungraded';
   if (gridFiltersActive(state)) {
-    const desc = activeFilterDescription(state);
-    return desc ? `filtered — ${desc}` : 'filtered';
+    return activeFilterDescription(state);
   }
-  return 'filtered';
+  return activeFilterDescription(state);
 }
 
 export function applyFilter(state) {
