@@ -178,6 +178,15 @@ button:focus-visible, a:focus-visible {
   letter-spacing: 0.08em;
 }
 
+.set-sync {
+  font-size: 10px;
+  color: var(--muted-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
 .controls {
   display: flex;
   align-items: center;

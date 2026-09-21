@@ -297,6 +297,72 @@ describe('renderGridView', () => {
     expect(state.index).toBe(0);
     expect(el.cardName.textContent).toBe('Card C');
   });
+
+  it('automatically collapses lanes with 0 cards', () => {
+    const el = makeEl();
+    const state = makeState({ tab: 'grid', grades: { a: { grade: 'A' } } });
+    renderGridView(state, el);
+    const heads = [...el.gridLanes.querySelectorAll('.lane-head')];
+    const byGrade = new Map(heads.map(h => [h.querySelector('.lane-grade').textContent, h]));
+    // A lane has 1 card -> expanded; B lane has 0 cards -> collapsed
+    expect(byGrade.get('A').getAttribute('aria-expanded')).toBe('true');
+    expect(byGrade.get('B').getAttribute('aria-expanded')).toBe('false');
+    expect(byGrade.get('B').querySelector('.lane-caret').classList.contains('collapsed')).toBe(true);
+    const tracks = [...el.gridLanes.querySelectorAll('.lane-track')];
+    const trackByGrade = new Map([...el.gridLanes.querySelectorAll('.lane')].map(laneEl => [
+      laneEl.querySelector('.lane-grade').textContent,
+      laneEl.querySelector('.lane-track'),
+    ]));
+    expect(trackByGrade.get('B').classList.contains('collapsed')).toBe(true);
+    expect(trackByGrade.get('A').classList.contains('collapsed')).toBe(false);
+    expect(tracks.length).toBeGreaterThan(0);
+  });
+
+  it('keeps non-empty lanes expanded by default', () => {
+    const el = makeEl();
+    const state = makeState({
+      tab: 'grid',
+      grades: { a: { grade: 'A' }, b: { grade: 'B' } },
+    });
+    renderGridView(state, el);
+    const byGrade = new Map([...el.gridLanes.querySelectorAll('.lane')].map(laneEl => [
+      laneEl.querySelector('.lane-grade').textContent,
+      laneEl,
+    ]));
+    expect(byGrade.get('A').querySelector('.lane-head').getAttribute('aria-expanded')).toBe('true');
+    expect(byGrade.get('B').querySelector('.lane-head').getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('lets the user expand an auto-collapsed empty lane and keeps it expanded on re-render', () => {
+    const el = makeEl();
+    const state = makeState({ tab: 'grid', grades: { a: { grade: 'A' } } });
+    renderGridView(state, el);
+    const laneB = [...el.gridLanes.querySelectorAll('.lane')].find(
+      laneEl => laneEl.querySelector('.lane-grade').textContent === 'B'
+    );
+    expect(laneB.querySelector('.lane-head').getAttribute('aria-expanded')).toBe('false');
+    laneB.querySelector('.lane-head').click();
+    const laneBAfter = [...el.gridLanes.querySelectorAll('.lane')].find(
+      laneEl => laneEl.querySelector('.lane-grade').textContent === 'B'
+    );
+    expect(laneBAfter.querySelector('.lane-head').getAttribute('aria-expanded')).toBe('true');
+    expect(laneBAfter.querySelector('.lane-track').classList.contains('collapsed')).toBe(false);
+  });
+
+  it('lets the user manually collapse a non-empty lane', () => {
+    const el = makeEl();
+    const state = makeState({ tab: 'grid', grades: { a: { grade: 'A' } } });
+    renderGridView(state, el);
+    const laneA = [...el.gridLanes.querySelectorAll('.lane')].find(
+      laneEl => laneEl.querySelector('.lane-grade').textContent === 'A'
+    );
+    expect(laneA.querySelector('.lane-head').getAttribute('aria-expanded')).toBe('true');
+    laneA.querySelector('.lane-head').click();
+    const laneAAfter = [...el.gridLanes.querySelectorAll('.lane')].find(
+      laneEl => laneEl.querySelector('.lane-grade').textContent === 'A'
+    );
+    expect(laneAAfter.querySelector('.lane-head').getAttribute('aria-expanded')).toBe('false');
+  });
 });
 
 describe('buildGridFilterBar', () => {

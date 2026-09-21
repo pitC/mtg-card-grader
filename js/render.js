@@ -504,11 +504,17 @@ export function renderGridView(state, el) {
   ];
 
   el.gridLanes.innerHTML = '';
+  if (!state.collapsedLanes) state.collapsedLanes = new Set();
+  if (!state.expandedLanes) state.expandedLanes = new Set();
+  for (const lane of lanes) {
+    if (lane.cards.length && state.expandedLanes.has(lane.label)) state.expandedLanes.delete(lane.label);
+  }
   lanes.forEach(lane => {
     const laneEl = document.createElement('div');
     laneEl.className = 'lane';
 
-    const collapsed = state.collapsedLanes && state.collapsedLanes.has(lane.label);
+    const isEmpty = lane.cards.length === 0;
+    const collapsed = state.collapsedLanes.has(lane.label) || (isEmpty && !state.expandedLanes.has(lane.label));
 
     const head = document.createElement('button');
     head.type = 'button';
@@ -531,9 +537,14 @@ export function renderGridView(state, el) {
     head.appendChild(grade);
     head.appendChild(count);
     head.addEventListener('click', () => {
-      if (!state.collapsedLanes) state.collapsedLanes = new Set();
-      if (state.collapsedLanes.has(lane.label)) state.collapsedLanes.delete(lane.label);
-      else state.collapsedLanes.add(lane.label);
+      const wasCollapsed = state.collapsedLanes.has(lane.label) || (isEmpty && !state.expandedLanes.has(lane.label));
+      if (wasCollapsed) {
+        state.collapsedLanes.delete(lane.label);
+        if (isEmpty) state.expandedLanes.add(lane.label);
+      } else {
+        state.collapsedLanes.add(lane.label);
+        if (isEmpty) state.expandedLanes.delete(lane.label);
+      }
       renderGridView(state, el);
     });
     laneEl.appendChild(head);
